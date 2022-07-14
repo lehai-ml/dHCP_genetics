@@ -1,0 +1,8 @@
+dataset/
+*.pyc
+/__pycache__/
+.DS_Store
+codes/executable_scripts/
+codes/Rscripts/
+preprocessed_dataset/
+*-checkpoint.ipynb
