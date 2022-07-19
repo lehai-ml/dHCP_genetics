@@ -61,8 +61,7 @@ class SNPsFunctionalAnalysis:
         # always when reading bed file assign the value to genotype attribute
         if not hasattr(bed_file, 'genotype'):
             bed_file.genotype = bed_file.read()
-        if snps_list != None:  # change the bed_file SNPs and associated
-
+        if snps_list is not None:  # change the bed_file SNPs and associated
             new_sid = [idx for idx, sid in enumerate(
                 bed_file.sid) if sid in snps_list]
             bed_file.genotype = bed_file.genotype[:, new_sid]
@@ -74,8 +73,8 @@ class SNPsFunctionalAnalysis:
             bed_file.properties_dict['allele_1'] = bed_file.allele_1[new_sid]
             bed_file.properties_dict['allele_2'] = bed_file.allele_2[new_sid]
 
-        if fid_list != None:  # change the bed_file ID info
-            new_fid = [idx for idx, i in enumerate(bed_file.fid) if i in fid_list]
+        if fid_list is not None:  # change the bed_file ID info
+            new_fid = [idx for idx, i in enumerate(bed_file.fid) if i.split('-')[0] in fid_list]
             bed_file.properties_dict['fid'] = bed_file.fid[new_fid]
             bed_file.properties_dict['iid'] = bed_file.iid[new_fid]
             bed_file.properties_dict['father'] = bed_file.father[new_fid]

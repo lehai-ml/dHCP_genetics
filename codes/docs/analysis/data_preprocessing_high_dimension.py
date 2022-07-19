@@ -19,6 +19,7 @@ from typing import List, Union, Optional
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+
 class FeatureReduction:
     
     
@@ -60,9 +61,66 @@ class FeatureReduction:
         X_pca = pca.fit_transform(X)
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
         loading_matrix = pd.DataFrame(loadings, index = columns)
-        return pca, X_pca, loading_matrix
+        return pca, X_pca, loading_matrix    
+    
+    def combine_columns_together(df:pd.DataFrame,
+                                 group_columns:Union[dict,List],
+                                 operation:str = 'sum',
+                                 remove_duplicated:bool=True):
+        """
+        Combine the columns by performing an operation on it.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Data Frame of interest.
+        group_columns_dict : dict
+            Dictionary {'new grouped name': [ list of columns names need to be grouped]}.
+            new grouped name cannot be the same name as the original names
+        operation : str, optional
+            {'sum','mean'}. The default is 'sum
+        remove_duplicated : bool, optional
+            If you don't want to use the new grouped name, but only update the original columns. The default is True.
+            if passing list, then drop the columns
+            Useful when you want to plot
+
+        Returns
+        -------
+        temp_df : pd.DataFrame
+            New updated df
+
+        """
+        temp_df = df.copy()
+        if isinstance(group_columns, dict):
+            for group,column_names in group_columns.items():
+                if operation == 'sum':
+                    temp_df[group] = temp_df[column_names].sum(axis=1)
+                elif operation == 'mean':
+                    temp_df[group] = temp_df[column_names].mean(axis=1)
+                if remove_duplicated:
+                    temp_df.drop(columns = column_names,inplace=True)
+                else:
+                    for column in column_names:
+                        temp_df[column] = temp_df[group]
+                    temp_df.drop(columns = group, inplace=True)
+        elif isinstance(group_columns,list):
+            if not isinstance(group_columns[0],list):
+                raise AttributeError('pass list of list if have only 1 group')
+            for column_names in group_columns:
+                if operation == 'sum':
+                    temp_df['temp'] = temp_df[column_names].sum(axis=1)
+                elif operation == 'mean':
+                    temp_df['temp'] = temp_df[column_names].mean(axis=1)
+                for column in column_names:
+                    temp_df[column] = temp_df['temp']
+                temp_df.drop(columns = 'temp', inplace=True)
+                if remove_duplicated:
+                    temp_df.drop(columns=column_names[1:],inplace=True)
+        return temp_df
+
         
     
-
+    
+    
     
     

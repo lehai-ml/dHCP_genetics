@@ -14,6 +14,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import tqdm
 # import pickle
+from statsmodels.multivariate.cancorr import CanCorr
+
 
 class MassUnivariate:
     
@@ -513,50 +515,6 @@ def matSpDLite(correlation_matrix:np.ndarray,alpha:str = 0.05):
     print(f'The adjusted multiple testing correction p-val is alpha/lower(Meff) = {adjusted_p_val}')
 
 
-def divide_high_low_risk(y: Optional[np.ndarray], high_perc: float = 0.1, low_perc: float = 0.3) -> List[np.ndarray]:
-    """[Divide the dataset into top and bottom x%. Here, we take the assumption that top percent is high risk and bottom percent is low risk.
-        While this method maximises the odd ratio for impacts, it raises concerns about the arbitrariness of the quantile used]
-
-    Args:
-        y (Optional[np.ndarray]): [the raw PRS score]
-        high_perc (float, optional): [higher risk group percentage]. Defaults to 0.1.
-        low_perc (float, optional): [lower risk group percentage]. Defaults to 0.3.
-
-    Raises:
-        Exception: [If high risk + low risk > total subject, raise exception]
-
-    Returns:
-        Union[np.ndarray]: [list of indices]
-    """
-
-    high_risk_number = int(np.ceil(high_perc*len(y)))
-    low_risk_number = int(np.ceil(low_perc*len(y)))
-    if high_risk_number+low_risk_number > len(y):
-        raise Exception('The high and low risk selection overlapped')
-    # bottom
-    low_risk = np.argsort(y)[:low_risk_number]
-    # top
-    high_risk = np.argsort(y)[::-1][:high_risk_number]
-
-    return high_risk, low_risk
-
-
-
-def perform_t_test(group_1: np.ndarray,
-                   group_2: np.ndarray) -> List[float]:
-    """[perform t-test]
-
-    Args:
-        group_1 (np.ndarray): [The arrays must have the same shape, except in the dimension corresponding to axis]
-        group_2 (np.ndarray):
-
-    Returns:
-        List[float]: [stats,pval]
-    """
-    stats, pval = ttest_ind(group_1, group_2, equal_var=True)
-    return stats, pval
-
-
 
 # def save_dict_with_pickle(dictionary: Optional[dict],
 #                           file_path: Optional[str]) -> None:
@@ -570,49 +528,103 @@ def perform_t_test(group_1: np.ndarray,
 #     dictionary = pickle.load(a_file)
 #     return dictionary
 
+def perform_CCA(X,Y,scale=True):
+    if scale:
+        X = StandardScaler().fit_transform(X)
+        Y = StandardScaler().fit_transform(Y)
+    
+    stats_cca = CanCorr(X, Y)
+    return stats_cca.corr_test().summary()
 
+class Stability_tests:
+    
+    @staticmethod
+    
+    def train_test_split_modified(df: Union[pd.DataFrame, np.ndarray] = None,*stratify_by_args, bins : int =4,
+                                  test_size: float = 0.5, random_state: int = 42) -> tuple:
+        """[splitting the data based on several stratification]
+    
+        Args:
+            df (Union[pd.DataFrame, np.ndarray], optional): [the data/ dataframe to be split]. Defaults to None.
+            bins (int, optional): [the bins used to separate the continuous data,
+                                        if it is too high, then due to small dataset, there might be error due to not enough data in each class]. Defaults to 4.
+            This works by concatenate multiple stratification criteria together, and then attempt train test split. This is done at each level of stratification. If the stratificatio is not successful, we reduce the bins number, and try again.
+            This is done in succession, so depending on what you want to stratify by, you put it earlier in the list. so GA_vol, PMA_vol will stratify first by GA, and then PMA.
+        Returns:
+            tuple : train and test set.
+        """
+        def attempting_train_test_split(df, stratify_by, idx, test_size,random_state):
+            try:
+                train, test = train_test_split(df, stratify=stratify_by, test_size=test_size, random_state=random_state)
+                return train, test
+            except ValueError:
+                stratification_list.pop()  # remove the last iteration
+                print('changing bins for %d argument' % idx)
+    
+        input_bins = bins
+        stratification_list = []
+        for idx, stratification in enumerate(stratify_by_args):
+            bins = input_bins
+            while True:
+                if isinstance(stratification, str):
+                    strat = df.loc[:, stratification].values
+                    if isinstance(strat[0], float):
+                        strat = pd.cut(strat, bins=bins, labels=False)
+                elif isinstance(stratification, np.ndarray):
+                    strat = stratification
+                    if isinstance(stratification[0], float):
+                        strat = pd.cut(strat, bins=bins, labels=False)
+                stratification_list.append(strat)
+                stratify_by = [''.join(map(lambda x: str(x), i))
+                               for i in zip(*stratification_list)]
+                train_test = attempting_train_test_split(df, stratify_by, idx,test_size=test_size,random_state=random_state)
+                if train_test:
+                    break
+                else:
+                    bins -= 1
 
-def train_test_split_modified(df: Union[pd.DataFrame, np.ndarray] = None,*stratify_by_args, bins : int =4,
-                              test_size: float = 0.5, random_state: int = 42) -> tuple:
-    """[splitting the data based on several stratification]
+        return train_test
+    @staticmethod
+    def divide_high_low_risk(y: Optional[np.ndarray], high_perc: float = 0.1, low_perc: float = 0.3) -> List[np.ndarray]:
+        """[Divide the dataset into top and bottom x%. Here, we take the assumption that top percent is high risk and bottom percent is low risk.
+            While this method maximises the odd ratio for impacts, it raises concerns about the arbitrariness of the quantile used]
+    
+        Args:
+            y (Optional[np.ndarray]): [the raw PRS score]
+            high_perc (float, optional): [higher risk group percentage]. Defaults to 0.1.
+            low_perc (float, optional): [lower risk group percentage]. Defaults to 0.3.
+    
+        Raises:
+            Exception: [If high risk + low risk > total subject, raise exception]
+    
+        Returns:
+            Union[np.ndarray]: [list of indices]
+        """
+    
+        high_risk_number = int(np.ceil(high_perc*len(y)))
+        low_risk_number = int(np.ceil(low_perc*len(y)))
+        if high_risk_number+low_risk_number > len(y):
+            raise Exception('The high and low risk selection overlapped')
+        # bottom
+        low_risk = np.argsort(y)[:low_risk_number]
+        # top
+        high_risk = np.argsort(y)[::-1][:high_risk_number]
+    
+        return high_risk, low_risk
+    
+    
+    @staticmethod
+    def perform_t_test(group_1: np.ndarray,
+                       group_2: np.ndarray) -> List[float]:
+        """[perform t-test]
+    
+        Args:
+            group_1 (np.ndarray): [The arrays must have the same shape, except in the dimension corresponding to axis]
+            group_2 (np.ndarray):
+    
+        Returns:
+            List[float]: [stats,pval]
+        """
+        stats, pval = ttest_ind(group_1, group_2, equal_var=True)
+        return stats, pval
 
-    Args:
-        df (Union[pd.DataFrame, np.ndarray], optional): [the data/ dataframe to be split]. Defaults to None.
-        bins (int, optional): [the bins used to separate the continuous data,
-                                    if it is too high, then due to small dataset, there might be error due to not enough data in each class]. Defaults to 4.
-        This works by concatenate multiple stratification criteria together, and then attempt train test split. This is done at each level of stratification. If the stratificatio is not successful, we reduce the bins number, and try again.
-        This is done in succession, so depending on what you want to stratify by, you put it earlier in the list. so GA_vol, PMA_vol will stratify first by GA, and then PMA.
-    Returns:
-        tuple : train and test set.
-    """
-    def attempting_train_test_split(df, stratify_by, idx, test_size,random_state):
-        try:
-            train, test = train_test_split(df, stratify=stratify_by, test_size=test_size, random_state=random_state)
-            return train, test
-        except ValueError:
-            stratification_list.pop()  # remove the last iteration
-            print('changing bins for %d argument' % idx)
-
-    input_bins = bins
-    stratification_list = []
-    for idx, stratification in enumerate(stratify_by_args):
-        bins = input_bins
-        while True:
-            if isinstance(stratification, str):
-                strat = df.loc[:, stratification].values
-                if isinstance(strat[0], float):
-                    strat = pd.cut(strat, bins=bins, labels=False)
-            elif isinstance(stratification, np.ndarray):
-                strat = stratification
-                if isinstance(stratification[0], float):
-                    strat = pd.cut(strat, bins=bins, labels=False)
-            stratification_list.append(strat)
-            stratify_by = [''.join(map(lambda x: str(x), i))
-                           for i in zip(*stratification_list)]
-            train_test = attempting_train_test_split(df, stratify_by, idx,test_size=test_size,random_state=random_state)
-            if train_test:
-                break
-            else:
-                bins -= 1
-
-    return train_test

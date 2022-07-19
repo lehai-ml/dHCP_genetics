@@ -447,7 +447,33 @@ class Geneset:
         
         
     
-
+def visualise_heatmap(df,
+                      ax,
+                      xlabel:str=None,
+                      ylabel:str=None,
+                      rotation=0):
+    
+    heatmap = df.copy()
+    g = ax.imshow(heatmap,cmap='jet')
+    ax.set_xticks(np.arange(0,heatmap.shape[1],1))
+    ax.set_yticks(np.arange(0,heatmap.shape[0],1))
+    
+    ax.set_xticks(np.arange(-.5, heatmap.shape[1], 1), minor=True)
+    ax.set_yticks(np.arange(-.5, heatmap.shape[0], 1), minor=True)
+    
+    ax.set_xticklabels(xlabel,rotation=rotation,fontsize=12)
+    ax.set_yticklabels(ylabel,rotation=rotation,fontsize=12)
+    ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+    
+    return g
+    
+    
+    
+        
+    
+    
+    
+    
 
 
 
