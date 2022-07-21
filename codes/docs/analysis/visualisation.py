@@ -11,35 +11,40 @@ import seaborn as sns
 from scipy.stats import ttest_ind, pearsonr
 import statsmodels.api as sm
 from typing import List, Union, Optional
+import nibabel as nib # used to do visualise brain maps
+import copy
+from matplotlib.collections import LineCollection
+import matplotlib.patches as mpatches
+import matplotlib as mpl
+from collections import defaultdict
+
+# def nx_kamada_kawai_layout(test_graph):
+#     '''
+#     Input: requires the networkx graph object
+#     '''
+#     weights = nx.get_edge_attributes(test_graph, 'weight').values()
+#     pos = nx.kamada_kawai_layout(test_graph)
+#     node_hubs = [(node, degree) for node, degree in sorted(dict(test_graph.degree).items(
+#     ), key=lambda item:item[1], reverse=True)][:5]  # sort dictionary by the values in the descending order
+#     node_hubs_names = [node for node, degree in node_hubs]
+#     labels = {}
+#     for node in test_graph.nodes:
+#         if node in node_hubs_names:
+#             # set the node name as the key and the label as its value
+#             labels[node] = node
+#     # set the argument 'with labels' to False so you have unlabeled graph
+#     nx.draw(test_graph, pos, width=list(weights), node_size=50,
+#             node_color='lightgreen', with_labels=False)
+#     # Now only add labels to the nodes you require
+#     nx.draw_networkx_labels(test_graph, pos, labels,
+#                             font_size=16, font_color='r')
 
 
-def nx_kamada_kawai_layout(test_graph):
-    '''
-    Input: requires the networkx graph object
-    '''
-    weights = nx.get_edge_attributes(test_graph, 'weight').values()
-    pos = nx.kamada_kawai_layout(test_graph)
-    node_hubs = [(node, degree) for node, degree in sorted(dict(test_graph.degree).items(
-    ), key=lambda item:item[1], reverse=True)][:5]  # sort dictionary by the values in the descending order
-    node_hubs_names = [node for node, degree in node_hubs]
-    labels = {}
-    for node in test_graph.nodes:
-        if node in node_hubs_names:
-            # set the node name as the key and the label as its value
-            labels[node] = node
-    # set the argument 'with labels' to False so you have unlabeled graph
-    nx.draw(test_graph, pos, width=list(weights), node_size=50,
-            node_color='lightgreen', with_labels=False)
-    # Now only add labels to the nodes you require
-    nx.draw_networkx_labels(test_graph, pos, labels,
-                            font_size=16, font_color='r')
-
-
-def save_in_npy(original_function, file_path):
-    def wrapper(*args, **kwargs):
-        result = original_function(*args, **kwargs)
-        return result
-    return wrapper
+# def save_in_npy(original_function, file_path):
+#     def wrapper(*args, **kwargs):
+#         result = original_function(*args, **kwargs)
+#         return result
+#     return wrapper
 
 
 def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
@@ -200,50 +205,181 @@ def draw_box_plots(df,
         ax.set_ylabel('corrected ' + ylabel)
     ax.text(0, 0, 't-test pval=%0.03f' % (pval))
 
-def get_edges(outline): # use in brain_segmentation
-    """
-    Use in the brain segmentation
-    """
-    #for each pixel colour the edges.
-    edges = []
-    rr,cc = np.nonzero(outline)
-    switcheroo = lambda x,y: (y,x) # the imshow and the np.matrix have different coordinates
-    def check_sides(r,c,outline):
-        sides = {'top':False,'bottom':False,'left':False,'right':False}
-        #the key is visualise that the 0,0 of the numpy matrix is upper left.
-        if r == 0 or not outline[r-1,c]:
-            # top edge
-            sides['top'] = True
-        if r == outline.shape[0] -1 or not outline[r+1,c]:
-            # bottom edge
-            sides['bottom'] = True
-        if c == 0 or not outline[r,c-1]:
-            # left edge
-            sides['left'] = True
-        if c == outline.shape[1]-1 or not outline[r,c+1]:
-            # right edge
-            sides['right'] = True
-        return sides
+class Brainmap:
     
-    for r,c in zip(rr,cc):
-        ul_coord = switcheroo(r,c) # upper left
-        ll_coord = switcheroo(r+1,c) # lower left
-        ur_coord = switcheroo(r,c+1) # upper right
-        lr_coord = switcheroo(r+1,c+1)# lower right
+    def __init__(self,atlas_file:Union[str,nib.nifti1.Nifti1Image],
+                 cmap:str='Spectral',cmap_reversed:bool=False):
+        if isinstance(atlas_file,str):
+            self.atlas_file = nib.load(atlas_file)
+        elif isinstance(atlas_file,nib.nifti1.Nifti1Image):
+            self.atlas_file = atlas_file
+        self.atlas = self.atlas_file.get_fdata()
+        self.cmap = copy.copy(plt.cm.get_cmap(cmap))
+        self.cmap.set_bad(alpha=0) # set transparency of np.nan numbers into 0
+        if cmap_reversed:
+            self.cmap = cmap.reversed()
+    
+    @staticmethod
+    def get_edges(outline): # use in brain_segmentation
+        """
+        Use in the brain segmentation
+        """
+        #for each pixel colour the edges.
+        edges = []
+        rr,cc = np.nonzero(outline)
+        switcheroo = lambda x,y: (y,x) # the imshow and the np.matrix have different coordinates
+        def check_sides(r,c,outline):
+            sides = {'top':False,'bottom':False,'left':False,'right':False}
+            #the key is visualise that the 0,0 of the numpy matrix is upper left.
+            if r == 0 or not outline[r-1,c]:
+                # top edge
+                sides['top'] = True
+            if r == outline.shape[0] -1 or not outline[r+1,c]:
+                # bottom edge
+                sides['bottom'] = True
+            if c == 0 or not outline[r,c-1]:
+                # left edge
+                sides['left'] = True
+            if c == outline.shape[1]-1 or not outline[r,c+1]:
+                # right edge
+                sides['right'] = True
+            return sides
         
-        sides_dict = check_sides(r,c,outline)
-        if sides_dict['top'] == True:
-            edges.append([ul_coord,ur_coord])# top edge
-        if sides_dict['bottom'] == True:
-            edges.append([ll_coord,lr_coord])# bottom edge
-        if sides_dict['left'] == True:
-            edges.append([ul_coord,ll_coord])# left edge
-        if sides_dict['right'] == True:
-            edges.append([ur_coord,lr_coord])# right edge
+        for r,c in zip(rr,cc):
+            ul_coord = switcheroo(r,c) # upper left
+            ll_coord = switcheroo(r+1,c) # lower left
+            ur_coord = switcheroo(r,c+1) # upper right
+            lr_coord = switcheroo(r+1,c+1)# lower right
+            
+            sides_dict = check_sides(r,c,outline)
+            if sides_dict['top'] == True:
+                edges.append([ul_coord,ur_coord])# top edge
+            if sides_dict['bottom'] == True:
+                edges.append([ll_coord,lr_coord])# bottom edge
+            if sides_dict['left'] == True:
+                edges.append([ul_coord,ll_coord])# left edge
+            if sides_dict['right'] == True:
+                edges.append([ur_coord,lr_coord])# right edge
 
-    return np.array(edges)-0.5
+        return np.array(edges)-0.5
+    
+    @classmethod
+    def plot_segmentation(cls,
+                         map_view:List=['all'],
+                         regions_to_hide:list=None,
+                         plot_values:Union[pd.DataFrame,dict]=None,
+                         fig:mpl.figure.Figure=None,
+                         axes:Union[np.ndarray,List]=None,
+                         colorbar:bool=False,
+                         label_legend:dict=None,
+                         atlas_file:Union[str,nib.nifti1.Nifti1Image]=None,
+                         cmap:str='Spectral',cmap_reversed:bool=False,**figkwargs):
+        #map_view = {'all','axial','coronal','saggital'}
+        brain_map = cls(atlas_file,cmap,cmap_reversed)
+        brain_map.atlas[brain_map.atlas == 0] = np.nan # set the background to 0 transparency
+        #the following original atlas are needed for the outline.
+        original_axial_atlas = brain_map.atlas[:,:,brain_map.atlas.shape[2]//2].copy()
+        original_coronal_atlas = brain_map.atlas[:,brain_map.atlas.shape[2]//2,:].copy()
+        original_sagittal_atlas = brain_map.atlas[brain_map.atlas.shape[2]//2,:,:].copy()
+        
+        # the following regions need to be hide (but outline will still be shown)
+        if regions_to_hide is not None:
+            for region in regions_to_hide:
+                brain_map.atlas[brain_map.atlas == region] = np.nan
+        
+        
+        if plot_values is not None:
+            if isinstance(plot_values,pd.DataFrame):
+                for region in plot_values.index:
+                    brain_map.atlas[brain_map.atlas == region] = plot_values[region]
+            elif isinstance(plot_values,dict):
+                for region,value in plot_values.items():
+                    brain_map.atlas[brain_map.atlas == region] = value
+        
+        if 'figsize' not in figkwargs:
+            figkwargs['figsize'] = (22,10)
+        
+        if axes is None:
+            if 'all' in map_view:
+                axes = 3
+            else:
+                axes = len(map_view)
+            fig, axes  = plt.subplots(1,axes,figsize=figkwargs['figsize'])
+            try:
+                len(axes)
+            except TypeError:
+                axes = np.asarray([axes]) # because when I zip in zip(map_view,axes) I can't zip len of 1? and len(axessubplot) doesnt return anything :)))
+        elif isinstance(axes,(list,np.ndarray)):
+            if 'all' in map_view:
+                if len(axes) != 3:
+                    raise ValueError('need 3 axes')
+            else:
+                if len(map_view) != len(axes):
+                    raise ValueError('number of map_view does not match number of axes provided')
+            if (fig is None) and (plot_values is not None) and (colorbar is not None):
+                raise AttributeError('Need fig element to plot the colorbar')
+        
+        #
+        axial_atlas = brain_map.atlas[:,:,brain_map.atlas.shape[2]//2].copy()
+        coronal_atlas = brain_map.atlas[:,brain_map.atlas.shape[2]//2,:].copy()
+        sagittal_atlas = brain_map.atlas[brain_map.atlas.shape[2]//2,:,:].copy()
 
+        map_view_dict = defaultdict(dict)
+        if 'all' in map_view:
+            map_view = ['axial','coronal','sagittal']
+        for view,ax in zip(map_view,axes):
+            map_view_dict[view]['ax'] = ax
+            if view == 'axial':
+                map_view_dict[view]['atlas'] = axial_atlas
+                map_view_dict[view]['original_atlas'] = original_axial_atlas
+            elif view == 'coronal':
+                map_view_dict[view]['atlas'] = coronal_atlas
+                map_view_dict[view]['original_atlas'] = original_coronal_atlas
+            elif view == 'sagittal':
+                map_view_dict[view]['atlas'] = sagittal_atlas
+                map_view_dict[view]['original_atlas'] = original_sagittal_atlas
+        
+        #plot the images
+        for view,ax in map_view_dict.items():
+            map_view_dict[view]['im'] = map_view_dict[view]['ax'].imshow(np.rot90(map_view_dict[view]['atlas']),cmap=brain_map.cmap)
+            
+            #plot the outlines
+            temp_original_atlas = map_view_dict[view]['original_atlas']
+            for unique_label in np.unique(temp_original_atlas[~np.isnan(temp_original_atlas)]):
+                #if it is that label, draw the outline
+                temp_outline_atlas = temp_original_atlas.copy()
+                temp_outline_atlas[temp_outline_atlas != unique_label] = 0 # if it is not that label, set the pixel to 0
+                temp_outline_atlas[temp_outline_atlas == unique_label] = 1 # basically draw the border where there is pixel value 1
+                temp_line = LineCollection(cls.get_edges(np.rot90(temp_outline_atlas)), lw=1, color='k')
+                map_view_dict[view]['ax'].add_collection(temp_line)
+        
+        
+        if 'orientation' not in figkwargs:
+            figkwargs['orientation'] = 'horizontal'
+        #add the colorbar?
+        if colorbar: # the colorbar is added to the last im
+            if plot_values is None:
+                raise ValueError('need plot value to have colorbar')
+            fig.colorbar(map_view_dict[list(map_view_dict)[-1]]['im'],figkwargs['orientation'])
+        
+        if label_legend is not None:
+            #get the unique labels
+            values = np.unique(np.concatenate([map_view_dict[view]['atlas'].ravel() for view in map_view]))
+            values = values[~np.isnan(values)] #not labelling the np.nan values
+            # get the colors of the values, according to the 
+            # colormap used by imshow
+            temp_im = map_view_dict[list(map_view_dict)[0]]['im']
+            colors = [temp_im.cmap(temp_im.norm(value)) for value in values]
+            patches = [mpatches.Patch(color=colors[i], label=label_legend[int(values[i])]['abbr']) for i in range(len(values))]
+            plt.legend(handles=patches, bbox_to_anchor=(-2.5, -1,0,0), loc='lower left',ncol=6,frameon=False)
 
+        for view in map_view:
+            sns.despine(bottom=True,left=True,right=True)
+            map_view_dict[view]['ax'].set_xticks([])
+            map_view_dict[view]['ax'].set_yticks([])
+            
+        
+        
 class Geneset:
 
     @staticmethod
@@ -472,7 +608,7 @@ def visualise_heatmap(df,
         
     
     
-    
+
     
 
 
