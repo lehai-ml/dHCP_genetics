@@ -71,7 +71,9 @@ class Cohort:
     @staticmethod
     def preprocess_PRSice_PRS_Anc_files(file_path:str,
                                         ID_prefix: str=None, 
-                                        ID_suffix: str= None) -> pd.core.frame.DataFrame:
+                                        ID_suffix: str= None,
+                                        column_prefix: str = None,
+                                        column_suffix: str = None) -> pd.core.frame.DataFrame:
         """[Preprocess PRS and ancestral PC tables with FID and IID columns]
 
         Args:
@@ -83,15 +85,19 @@ class Cohort:
         """
         
         table=pd.read_table(file_path,delim_whitespace=True)
-        if ID_prefix:
+        if ID_prefix is not None:
             table['IID']=[ID_prefix+str(i) for i in table['IID']]
-        if ID_suffix:
+        if ID_suffix is not None:
             table['IID']=[str(i)+ID_suffix for i in table['IID']]
         table=table.drop('FID',axis=1)
         table=table.rename({'IID':'ID'},axis=1)
         table=table.sort_values('ID').reset_index(drop=True)
         table['ID'] = [i.split('-')[0] for i in table['ID']]
         table = table.set_index('ID')
+        if column_prefix is not None:
+            table.columns = [column_prefix+i for i in table.columns]
+        if column_suffix is not None:
+            table.columns = [i+column_suffix for i in table.columns]
         return table
     
     @staticmethod
