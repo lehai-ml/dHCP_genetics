@@ -190,12 +190,16 @@ class MassUnivariate:
         return last_model, model_summary
     
     @staticmethod
-    def remove_outliers(df:pd.DataFrame,col:str=None,threshold:float=None,subject_ID:list=None) -> pd.DataFrame:
+    def remove_outliers(df:pd.DataFrame,
+                        col:Union[str,List]=None,
+                        threshold:float=None,
+                        remove_schemes:str='any',
+                        subject_ID:list=None) -> pd.DataFrame:
         """[Remove outliers using the z-score (the same as using StandardScaler). The standard deviation]
 
         Args:
             df (pd.DataFrame): [Dataframe of interest]
-            col (str, optional): [column of interest]. Defaults to None.
+            col (str or List, optional): [column of interest]. Defaults to None.
             threshold (float, optional): [the threshold of the z-score]. Defaults to None.
             subject_ID (list, optional): [Or gives me the list of subject IDs and remove by that way]. Defaults to None.
 
@@ -205,9 +209,17 @@ class MassUnivariate:
         new_df = df.copy()
         idx_to_remove_by_col=[]
         idx_to_remove_by_ID=[]
-        if col!=None:
-            idx_to_remove_by_col = new_df.loc[np.abs(zscore(new_df[col]))>threshold].index.to_list()
-        if subject_ID!=None:
+        if col is not None:
+            if not isinstance(col,list):
+                col = [col]
+            if remove_schemes == 'any': #remove observations that have outlier in any of the examined column
+                idx_to_remove_by_col = new_df.loc[(np.abs(zscore(new_df[col]))>threshold).any(axis=1)].index.to_list()
+            elif remove_schemes == 'all': #remove observations that have outlier in all of the examined column
+                idx_to_remove_by_col = new_df.loc[(np.abs(zscore(new_df[col]))>threshold).all(axis=1)].index.to_list()
+            elif remove_schemes == 'sum': # sum up the cols of interests and remove the outlier based on that sum
+                idx_to_remove_by_col = new_df.loc[(np.abs(zscore(new_df[col].sum(axis=1)))>threshold)].index.to_list()
+
+        if subject_ID is not None:
             idx_to_remove_by_ID = (new_df.iloc[[idx for idx,i in enumerate(new_df.ID) if i in subject_ID]].index.to_list())
         idx_to_remove = idx_to_remove_by_col + idx_to_remove_by_ID
         idx_to_remove = list(set(idx_to_remove))
