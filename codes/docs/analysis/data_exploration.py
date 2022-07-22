@@ -194,6 +194,7 @@ class MassUnivariate:
                         col:Union[str,List]=None,
                         threshold:float=None,
                         remove_schemes:str='any',
+                        percentage_of_outlier:float=0.2,
                         subject_ID:list=None) -> pd.DataFrame:
         """[Remove outliers using the z-score (the same as using StandardScaler). The standard deviation]
 
@@ -218,7 +219,9 @@ class MassUnivariate:
                 idx_to_remove_by_col = new_df.loc[(np.abs(zscore(new_df[col]))>threshold).all(axis=1)].index.to_list()
             elif remove_schemes == 'sum': # sum up the cols of interests and remove the outlier based on that sum
                 idx_to_remove_by_col = new_df.loc[(np.abs(zscore(new_df[col].sum(axis=1)))>threshold)].index.to_list()
-
+            elif remove_schemes == 'percentage': # remove observations that have more than x% of all features are outliers
+                all_zscores = np.abs(zscore(new_df[col]))
+                idx_to_remove_by_col = new_df.loc[(all_zscores>threshold).mean(axis=1)>=percentage_of_outlier].index.to_list()
         if subject_ID is not None:
             idx_to_remove_by_ID = (new_df.iloc[[idx for idx,i in enumerate(new_df.ID) if i in subject_ID]].index.to_list())
         idx_to_remove = idx_to_remove_by_col + idx_to_remove_by_ID
