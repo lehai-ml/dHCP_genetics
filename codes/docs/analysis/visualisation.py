@@ -155,20 +155,28 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
     ax.set_title(title)
 
 
-def plot_correlation(x: List[np.ndarray],
+def plot_correlation(x: np.ndarray,
                      y: np.ndarray,
-                     title=None, xlabel=None, ylabel=None):
+                     title:str=None, 
+                     xlabel:str=None, 
+                     ylabel:str=None,
+                     c:np.ndarray = None,
+                     cmap = 'jet',
+                     colorbar_label=None):
     lin_reg = LinearRegression()
     lin_reg.fit(np.asarray(x).reshape(-1, 1), np.asarray(y))
-    plt.plot(x, y, '.')
+    if c is not None:
+        plt.scatter(x,y,c=c,cmap=cmap)
+        plt.colorbar(label = colorbar_label)
+    else:
+        plt.scatter(x, y)
     plt.plot(np.asarray(x), lin_reg.predict(
-        np.asarray(x).reshape(-1, 1)).reshape(-1))
+        np.asarray(x).reshape(-1, 1)).reshape(-1),'-',color='orange')
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
     corr, p = pearsonr(x, y)
     plt.figtext(0, 0, 'corr=%0.03f, pval=%0.03f' % (corr, p))
-
 
 def draw_box_plots(df,
                    dependentVar=None,
@@ -217,7 +225,7 @@ class Brainmap:
         self.cmap = copy.copy(plt.cm.get_cmap(cmap))
         self.cmap.set_bad(alpha=0) # set transparency of np.nan numbers into 0
         if cmap_reversed:
-            self.cmap = cmap.reversed()
+            self.cmap = self.cmap.reversed()
     
     @staticmethod
     def get_edges(outline): # use in brain_segmentation
@@ -268,13 +276,69 @@ class Brainmap:
                          map_view:List=['all'],
                          regions_to_hide:list=None,
                          plot_values:Union[pd.DataFrame,dict]=None,
+                         plot_values_labels:Union[str,List]=None,
+                         plot_values_values:Union[str,List]=None,
                          fig:mpl.figure.Figure=None,
                          axes:Union[np.ndarray,List]=None,
                          colorbar:bool=False,
                          label_legend:dict=None,
                          atlas_file:Union[str,nib.nifti1.Nifti1Image]=None,
                          cmap:str='Spectral',cmap_reversed:bool=False,**figkwargs):
-        #map_view = {'all','axial','coronal','saggital'}
+        """
+        Plot the brain segmentation
+
+        Parameters
+        ----------
+        cls : TYPE
+            DESCRIPTION.
+        map_view : List, optional
+            {'all','sagittal','axial','coronal'}. The default is ['all'].
+        regions_to_hide : list, optional
+            Give the list of regions to hide (the regions must be list of intergers) The labels will be set to transparency 0. The default is None.
+        plot_values : Union[pd.DataFrame,dict], optional
+            plot a color for each label denoting the strength of p-value or some other metrics.
+            If provide a DataFrame, needs to provide name of the label column (this will be interger list) and value column. 
+            If provide a dictionary, the key will be the label, and the value will be the value. The default is None.
+        plot_values_labels : Union[str,List], optional
+            The label column if providing dataframe otherwise list of label (interger list). The default is None.
+        plot_values_values : Union[str,List], optional
+            The value column if providing dataframe otherwise list of value.
+            If plot_values not provided, you can plot using plot_values_labels and plot_values_values.The default is None.
+        fig : mpl.figure.Figure, optional
+            Can specify the fig, if not fig will be created. The default is None.
+        axes : Union[np.ndarray,List], optional
+            Can provide the specific axes, list of axes. If not axes will be created. The default is None.
+        colorbar : bool, optional
+            If plot_values is specified (or plot_values_labels and plot_values_values), then can choose if to plot the colorbar. The default is False.
+        label_legend : dict, optional
+            If not using the plot_values, but you want to show the segmentation.
+            Each color patch in the legend will correspond to the color in the plot
+            Must provide a dictionary, where the key is interger denoting the label.
+            And value is the string abbreviation. The default is None.
+        atlas_file : Union[str,nib.nifti1.Nifti1Image], optional
+            The path to the nifti file, or the nib.load(Nifti file). The default is None.
+        cmap : str, optional
+            The color scheme. The default is 'Spectral'.
+        cmap_reversed : bool, optional
+            If you want to reverse the color scheme. The default is False.
+        **figkwargs : TYPE
+            orientation = {'horizontal','vertical'} if you want your change your colorbar orientation. Default horizontal next to the last axes.
+
+        Raises
+        ------
+        ValueError
+            DESCRIPTION.
+        AttributeError
+            DESCRIPTION.
+
+        Returns
+        -------
+        fig : TYPE
+            The mpl.Figure either created or used.
+        map_view_dict : TYPE
+            a dictionary containing all atlas array, including 'im' plotted.
+
+        """
         brain_map = cls(atlas_file,cmap,cmap_reversed)
         brain_map.atlas[brain_map.atlas == 0] = np.nan # set the background to 0 transparency
         #the following original atlas are needed for the outline.
@@ -290,11 +354,23 @@ class Brainmap:
         
         if plot_values is not None:
             if isinstance(plot_values,pd.DataFrame):
-                for region in plot_values.index:
-                    brain_map.atlas[brain_map.atlas == region] = plot_values[region]
+                if not isinstance(plot_values_labels,str) or not isinstance(plot_values_values, str):
+                    raise ValueError('need labels and values names if input is dataframe')
+                else:
+                    regions = plot_values[plot_values_labels]
+                    for region in regions:
+                        brain_map.atlas[brain_map.atlas == region] = plot_values.loc[plot_values[plot_values_labels]==region,plot_values_values]
             elif isinstance(plot_values,dict):
                 for region,value in plot_values.items():
                     brain_map.atlas[brain_map.atlas == region] = value
+        else:
+            if plot_values_labels is not None and plot_values_values is not None:
+                if not isinstance(plot_values_labels,(list,np.ndarray)) or not isinstance(plot_values_values, (list,np.ndarray)):
+                    raise ValueError('need labels and values list of values if input is list')
+                else:
+                    for region,value in zip(plot_values_labels,plot_values_values):
+                        brain_map.atlas[brain_map.atlas == region] = value
+                
         
         if 'figsize' not in figkwargs:
             figkwargs['figsize'] = (22,10)
@@ -342,7 +418,7 @@ class Brainmap:
         #plot the images
         for view,ax in map_view_dict.items():
             map_view_dict[view]['im'] = map_view_dict[view]['ax'].imshow(np.rot90(map_view_dict[view]['atlas']),cmap=brain_map.cmap)
-            
+    
             #plot the outlines
             temp_original_atlas = map_view_dict[view]['original_atlas']
             for unique_label in np.unique(temp_original_atlas[~np.isnan(temp_original_atlas)]):
@@ -353,14 +429,13 @@ class Brainmap:
                 temp_line = LineCollection(cls.get_edges(np.rot90(temp_outline_atlas)), lw=1, color='k')
                 map_view_dict[view]['ax'].add_collection(temp_line)
         
-        
         if 'orientation' not in figkwargs:
             figkwargs['orientation'] = 'horizontal'
         #add the colorbar?
         if colorbar: # the colorbar is added to the last im
-            if plot_values is None:
+            if plot_values is None and plot_values_labels is None and plot_values_values is None:
                 raise ValueError('need plot value to have colorbar')
-            fig.colorbar(map_view_dict[list(map_view_dict)[-1]]['im'],figkwargs['orientation'])
+            fig.colorbar(map_view_dict[list(map_view_dict)[-1]]['im'],orientation = figkwargs['orientation'])
         
         if label_legend is not None:
             #get the unique labels
@@ -370,14 +445,42 @@ class Brainmap:
             # colormap used by imshow
             temp_im = map_view_dict[list(map_view_dict)[0]]['im']
             colors = [temp_im.cmap(temp_im.norm(value)) for value in values]
-            patches = [mpatches.Patch(color=colors[i], label=label_legend[int(values[i])]['abbr']) for i in range(len(values))]
+            patches = [mpatches.Patch(color=colors[i], label=label_legend[int(values[i])]) for i in range(len(values))]
             plt.legend(handles=patches, bbox_to_anchor=(-2.5, -1,0,0), loc='lower left',ncol=6,frameon=False)
 
         for view in map_view:
             sns.despine(bottom=True,left=True,right=True)
             map_view_dict[view]['ax'].set_xticks([])
             map_view_dict[view]['ax'].set_yticks([])
-            
+        
+        return fig, map_view_dict
+        
+    
+    @classmethod
+    def get_ROIs_coordinates(cls,
+                             atlas_file:Union[str,nib.nifti1.Nifti1Image]):
+        """
+        Get ROIs coordinate where the x,y,z are the voxel indices.
+        Parameters
+        ----------
+        atlas_file : Union[str,nib.nifti1.Nifti1Image]
+            pathway to nifti file or the nib.load nifti file.
+
+        Returns
+        -------
+        ROIs_coord : dict
+            dictionary where for the key is label, and value is the x,y,z coordinates.
+        """
+        brain_map = Brainmap(atlas_file)
+        brain_map.atlas[np.isnan(brain_map.atlas)] = 0 # if nan exist set to 0
+        ROIs_coord = defaultdict(list)
+        for label in np.unique(brain_map.atlas):
+            if label != 0:
+                ROIs_coord[label] = [coord.mean() for coord in np.where(brain_map.atlas == label)]
+        ROIs_coord = pd.DataFrame(ROIs_coord).T
+        ROIs_coord.reset_index(inplace=True)
+        ROIs_coord.columns = ['Label','X','Y','Z']
+        return ROIs_coord
         
         
 class Geneset:
