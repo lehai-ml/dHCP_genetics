@@ -35,32 +35,32 @@ class FeatureReduction:
     
     
     @staticmethod
-    def perform_PCA(df:pd.DataFrame,
-                    dependentVar_cols:Optional[Union[List[str],
-                                    List[np.ndarray]]] = None,
+    def perform_PCA(df:Union[pd.DataFrame,np.ndarray],
+                    dependentVar_cols:Optional[List[str]] = None,
                     n_components:int=None,
                     random_state:int=42,
                     scaling:bool=False,
                     columns = None):
         pca = PCA(n_components=n_components,
                   random_state=random_state)
-        if isinstance(dependentVar_cols, list):
-            if isinstance(dependentVar_cols[0], str):
+        if dependentVar_cols is not None:
+            if not isinstance(dependentVar_cols,list):
+                dependentVar_cols = [dependentVar_cols]
+        if isinstance(df,pd.DataFrame):
+            if dependentVar_cols is None:
+                X = df.to_numpy()
+            else:
                 X = df[dependentVar_cols].to_numpy()
-                columns = dependentVar_cols
-            elif isinstance(dependentVar_cols[0],np.ndarray):
-                X = np.concatenate([i.reshape(-1, 1) 
-                                    if i.ndim == 1 else i for i in dependentVar_cols], axis=1)
-        elif isinstance(dependentVar_cols,np.ndarray):
-            X = dependentVar_cols
-        elif isinstance(dependentVar_cols,pd.DataFrame):
-            X = dependentVar_cols.to_numpy()
-            columns = dependentVar_cols.columns.to_list()
+        elif isinstance(df,np.ndarray):
+            X = df.copy()
         if scaling:
             X = StandardScaler().fit_transform(X)
         X_pca = pca.fit_transform(X)
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
-        loading_matrix = pd.DataFrame(loadings, index = columns)
+        if dependentVar_cols is not None:
+            loading_matrix = pd.DataFrame(loadings, index = dependentVar_cols)
+        else:
+            loading_matrix = pd.DataFrame(loadings)
         return pca, X_pca, loading_matrix    
     
     def combine_columns_together(df:pd.DataFrame,
