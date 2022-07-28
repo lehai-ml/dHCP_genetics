@@ -221,6 +221,9 @@ class Brainmap:
             self.atlas_file = nib.load(atlas_file)
         elif isinstance(atlas_file,nib.nifti1.Nifti1Image):
             self.atlas_file = atlas_file
+        atlas_affine = self.atlas_file.affine
+        if nib.aff2axcodes(atlas_affine) != ('R','A','S'): # if it is not RAS orientation, change to it.
+            self.atlas_file = nib.as_closest_canonical(self.atlas_file)
         self.atlas = self.atlas_file.get_fdata()
         self.cmap = copy.copy(plt.cm.get_cmap(cmap))
         self.cmap.set_bad(alpha=0) # set transparency of np.nan numbers into 0
@@ -274,16 +277,18 @@ class Brainmap:
     @classmethod
     def plot_segmentation(cls,
                          map_view:List=['all'],
+                         atlas_slice:Union[int,list,dict]=None,
                          regions_to_hide:list=None,
-                         plot_values:Union[pd.DataFrame,dict]=None,
-                         plot_values_labels:Union[str,List]=None,
-                         plot_values_values:Union[str,List]=None,
+                         plot_values:dict=None,
+                         plot_values_threshold:float=None,
+                         mask:dict=None,
                          fig:mpl.figure.Figure=None,
                          axes:Union[np.ndarray,List]=None,
                          colorbar:bool=False,
                          label_legend:dict=None,
+                         legends:bool=True,
                          atlas_file:Union[str,nib.nifti1.Nifti1Image]=None,
-                         cmap:str='Spectral',cmap_reversed:bool=False,**figkwargs):
+                         cmap:str='Spectral',plot_orientation:bool=True,**figkwargs):
         """
         Plot the brain segmentation
 
@@ -293,23 +298,26 @@ class Brainmap:
             DESCRIPTION.
         map_view : List, optional
             {'all','sagittal','axial','coronal'}. The default is ['all'].
+        atlas_slice: int,list, dict, optional
+            dictionary keys: axial, coronal, sagittal, values = slice number
+            if list: three numbers corresponds to axial, coronal, sagittal
+            Choose which slice to show, else middle slice will be shown.
         regions_to_hide : list, optional
             Give the list of regions to hide (the regions must be list of intergers) The labels will be set to transparency 0. The default is None.
-        plot_values : Union[pd.DataFrame,dict], optional
+        plot_values : Union[dict], optional
             plot a color for each label denoting the strength of p-value or some other metrics.
-            If provide a DataFrame, needs to provide name of the label column (this will be interger list) and value column. 
             If provide a dictionary, the key will be the label, and the value will be the value. The default is None.
-        plot_values_labels : Union[str,List], optional
-            The label column if providing dataframe otherwise list of label (interger list). The default is None.
-        plot_values_values : Union[str,List], optional
-            The value column if providing dataframe otherwise list of value.
-            If plot_values not provided, you can plot using plot_values_labels and plot_values_values.The default is None.
+        plot_values_threshold:float, optional
+            A number that can be applied to plot_values and set the ones that do not pass the threshold to np.nan
+        mask : Union[dict], optional
+            Can pass a mask, that after passing the plot_values threshold, instead of plotting the original plot_values, the mask will be plotted instead.
+            E.g. I have p-values as plot_values, but I want to plot beta- coefficients that has p-value <0.05 instead. Here the dict of beta coef is the mask.
         fig : mpl.figure.Figure, optional
             Can specify the fig, if not fig will be created. The default is None.
         axes : Union[np.ndarray,List], optional
             Can provide the specific axes, list of axes. If not axes will be created. The default is None.
         colorbar : bool, optional
-            If plot_values is specified (or plot_values_labels and plot_values_values), then can choose if to plot the colorbar. The default is False.
+            If plot_values is specified, then can choose if to plot the colorbar. The default is False.
         label_legend : dict, optional
             If not using the plot_values, but you want to show the segmentation.
             Each color patch in the legend will correspond to the color in the plot
@@ -319,11 +327,15 @@ class Brainmap:
             The path to the nifti file, or the nib.load(Nifti file). The default is None.
         cmap : str, optional
             The color scheme. The default is 'Spectral'.
-        cmap_reversed : bool, optional
-            If you want to reverse the color scheme. The default is False.
+        plot_orientation: bool, optional
+            If you want to plot the axis in the RAS coordinate.
         **figkwargs : TYPE
-            orientation = {'horizontal','vertical'} if you want your change your colorbar orientation. Default horizontal next to the last axes.
-
+            cmap_reversed = if you want to revese the cmap default False
+            cb_orientation = {'horizontal','vertical'} if you want your change your colorbar orientation. Default horizontal next to the last axes.
+            cb_title = str. name of the colorbar
+            figsize = Default (20,10)
+            update_outline_label_legends: bool. Default True. The outline is updated if the the same legend is found in two regions.
+            update_outline_regions_to_hide: bool. Default False. Update the outline after using regions_to_hide. 
         Raises
         ------
         ValueError
@@ -337,40 +349,84 @@ class Brainmap:
             The mpl.Figure either created or used.
         map_view_dict : TYPE
             a dictionary containing all atlas array, including 'im' plotted.
-
         """
-        brain_map = cls(atlas_file,cmap,cmap_reversed)
+        if 'cmap_reversed' not in figkwargs:
+            figkwargs['cmap_reversed'] = False
+        brain_map = cls(atlas_file,cmap,figkwargs['cmap_reversed'])
         brain_map.atlas[brain_map.atlas == 0] = np.nan # set the background to 0 transparency
         #the following original atlas are needed for the outline.
-        original_axial_atlas = brain_map.atlas[:,:,brain_map.atlas.shape[2]//2].copy()
-        original_coronal_atlas = brain_map.atlas[:,brain_map.atlas.shape[2]//2,:].copy()
-        original_sagittal_atlas = brain_map.atlas[brain_map.atlas.shape[2]//2,:,:].copy()
+        atlas_slice_dict = {'axial':brain_map.atlas.shape[2]//2,
+                         'coronal':brain_map.atlas.shape[2]//2,
+                         'sagittal':brain_map.atlas.shape[2]//2}
+
+        if isinstance(atlas_slice,int):
+            atlas_slice_dict['axial'] = atlas_slice
+            atlas_slice_dict['coronal'] = atlas_slice
+            atlas_slice_dict['sagittal'] = atlas_slice
+        elif isinstance(atlas_slice, list):
+            if len(atlas_slice)!=3:
+                raise ValueError('atlas slice must be 3, stands for axial, coronal, sagittal')
+            atlas_slices = [slice_int if slice_int is not None else brain_map.atlas.shape[2]//2 for slice_int in atlas_slice]
+            atlas_slice_dict = dict(zip(['axial','coronal','sagittal'],atlas_slices))
+        elif isinstance(atlas_slice,dict):
+            for key,value in atlas_slice.items():
+                atlas_slice_dict[key] = value                
+        
+        #original atlases are used to delineate the outline
+        original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
+        original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
+        original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
+                
+        if label_legend is not None:
+            unique_regions = np.unique(brain_map.atlas[~np.isnan(brain_map.atlas)]) #not labelling the np.nan values
+            for region in unique_regions:
+                if region not in label_legend:
+                    brain_map.atlas[brain_map.atlas==region] = np.nan
+            
+            #check for unique legends- basically group the labels/ regions if the legend is the same. the original outline will still be shown
+            unique_legends = set(label_legend.values()) 
+            legend_label = {uniq_leg:[k for k in label_legend.keys() if label_legend[k] == uniq_leg] for uniq_leg in unique_legends}
+            for legend,label in legend_label.items():
+                if len(label)>1:
+                    for region in label:
+                        brain_map.atlas[brain_map.atlas==region] = label[0]
+            
+            if 'update_outline_label_legends' not in figkwargs:
+                figkwargs['update_outline_label_legends'] = True
+            if figkwargs['update_outline_label_legends']:
+                original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
+                original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
+                original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
         
         # the following regions need to be hide (but outline will still be shown)
         if regions_to_hide is not None:
             for region in regions_to_hide:
                 brain_map.atlas[brain_map.atlas == region] = np.nan
-        
-        
+                if 'update_outline_regions_to_hide' not in figkwargs:
+                    figkwargs['update_outline_regions_to_hide'] = True
+                if figkwargs['update_outline_regions_to_hide']:
+                    original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
+                    original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
+                    original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
+            
+                
+                
         if plot_values is not None:
-            if isinstance(plot_values,pd.DataFrame):
-                if not isinstance(plot_values_labels,str) or not isinstance(plot_values_values, str):
-                    raise ValueError('need labels and values names if input is dataframe')
+            if not isinstance(plot_values,dict):
+                raise TypeError('plot_values needs to be a dictionary, where keys are the label, and values are the plot values')
+            else:
+                unique_regions = np.unique(brain_map.atlas[~np.isnan(brain_map.atlas)])
+                if plot_values_threshold is not None:
+                    if mask is not None:
+                        if not isinstance(mask,dict):
+                            raise TypeError('mask needs to be a dictionary, where keys are the label, and values are the plot values')
+                        plot_values = {indx:mask[indx] if (indx in plot_values.keys()) and (plot_values[indx]>plot_values_threshold) and (indx in mask.keys()) else np.nan for indx in unique_regions}
+                    else:
+                        plot_values = {indx:plot_values[indx] if (indx in plot_values.keys()) and (plot_values[indx]>plot_values_threshold) else np.nan for indx in unique_regions}                  
                 else:
-                    regions = plot_values[plot_values_labels]
-                    for region in regions:
-                        brain_map.atlas[brain_map.atlas == region] = plot_values.loc[plot_values[plot_values_labels]==region,plot_values_values]
-            elif isinstance(plot_values,dict):
+                    plot_values = {indx:plot_values[indx] if indx in plot_values.keys() else np.nan for indx in unique_regions}
                 for region,value in plot_values.items():
                     brain_map.atlas[brain_map.atlas == region] = value
-        else:
-            if plot_values_labels is not None and plot_values_values is not None:
-                if not isinstance(plot_values_labels,(list,np.ndarray)) or not isinstance(plot_values_values, (list,np.ndarray)):
-                    raise ValueError('need labels and values list of values if input is list')
-                else:
-                    for region,value in zip(plot_values_labels,plot_values_values):
-                        brain_map.atlas[brain_map.atlas == region] = value
-                
         
         if 'figsize' not in figkwargs:
             figkwargs['figsize'] = (22,10)
@@ -396,9 +452,9 @@ class Brainmap:
                 raise AttributeError('Need fig element to plot the colorbar')
         
         #
-        axial_atlas = brain_map.atlas[:,:,brain_map.atlas.shape[2]//2].copy()
-        coronal_atlas = brain_map.atlas[:,brain_map.atlas.shape[2]//2,:].copy()
-        sagittal_atlas = brain_map.atlas[brain_map.atlas.shape[2]//2,:,:].copy()
+        axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
+        coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
+        sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
 
         map_view_dict = defaultdict(dict)
         if 'all' in map_view:
@@ -416,8 +472,11 @@ class Brainmap:
                 map_view_dict[view]['original_atlas'] = original_sagittal_atlas
         
         #plot the images
+        vmin = np.min([map_view_dict[view]['atlas'][~np.isnan(map_view_dict[view]['atlas'])].min() for view in map_view_dict.keys()])
+        vmax = np.max([map_view_dict[view]['atlas'][~np.isnan(map_view_dict[view]['atlas'])].max() for view in map_view_dict.keys()])
+
         for view,ax in map_view_dict.items():
-            map_view_dict[view]['im'] = map_view_dict[view]['ax'].imshow(np.rot90(map_view_dict[view]['atlas']),cmap=brain_map.cmap)
+            map_view_dict[view]['im'] = map_view_dict[view]['ax'].imshow(np.rot90(map_view_dict[view]['atlas']),vmin=vmin,vmax=vmax,cmap=brain_map.cmap)
     
             #plot the outlines
             temp_original_atlas = map_view_dict[view]['original_atlas']
@@ -429,29 +488,57 @@ class Brainmap:
                 temp_line = LineCollection(cls.get_edges(np.rot90(temp_outline_atlas)), lw=1, color='k')
                 map_view_dict[view]['ax'].add_collection(temp_line)
         
-        if 'orientation' not in figkwargs:
-            figkwargs['orientation'] = 'horizontal'
+        if 'cb_orientation' not in figkwargs:
+            figkwargs['cb_orientation'] = 'vertical'
         #add the colorbar?
         if colorbar: # the colorbar is added to the last im
-            if plot_values is None and plot_values_labels is None and plot_values_values is None:
+            if plot_values is None:
                 raise ValueError('need plot value to have colorbar')
-            fig.colorbar(map_view_dict[list(map_view_dict)[-1]]['im'],orientation = figkwargs['orientation'])
+            cb = fig.colorbar(map_view_dict[list(map_view_dict)[-1]]['im'],ax = map_view_dict[list(map_view_dict)[-1]]['ax'], orientation = figkwargs['cb_orientation'])
+            if 'cb_title' not in figkwargs:
+                figkwargs['cb_title'] = None
+            if figkwargs['cb_orientation'] == 'vertical':
+                cb.ax.set_ylabel(figkwargs['cb_title'],rotation=90,fontsize=12,fontweight='bold')
+            elif figkwargs['cb_orientation'] == 'horizontal':
+                cb.ax.set_xlabel(figkwargs['cb_title'],rotation=0,fontsize=12,fontweight='bold')
         
         if label_legend is not None:
-            #get the unique labels
-            values = np.unique(np.concatenate([map_view_dict[view]['atlas'].ravel() for view in map_view]))
-            values = values[~np.isnan(values)] #not labelling the np.nan values
-            # get the colors of the values, according to the 
-            # colormap used by imshow
-            temp_im = map_view_dict[list(map_view_dict)[0]]['im']
-            colors = [temp_im.cmap(temp_im.norm(value)) for value in values]
-            patches = [mpatches.Patch(color=colors[i], label=label_legend[int(values[i])]) for i in range(len(values))]
-            plt.legend(handles=patches, bbox_to_anchor=(-2.5, -1,0,0), loc='lower left',ncol=6,frameon=False)
+            #to plot legends?
+            if legends:
+                #get the unique labels
+                values = np.unique(np.concatenate([map_view_dict[view]['atlas'].ravel() for view in map_view]))
+                values = values[~np.isnan(values)] #not labelling the np.nan values
+                # get the colors of the values, according to the 
+                # colormap used by imshow
+                temp_im = map_view_dict[list(map_view_dict)[0]]['im']
+                colors = [temp_im.cmap(temp_im.norm(value)) for value in values]
+                patches = [mpatches.Patch(color=colors[idx], label=label_legend[int(i)]) for idx, i in enumerate(values) if i in label_legend]
+                plt.legend(handles=patches, bbox_to_anchor=(-2.5, -1,0,0), loc='lower left',ncol=6,frameon=False)
 
         for view in map_view:
             sns.despine(bottom=True,left=True,right=True)
             map_view_dict[view]['ax'].set_xticks([])
             map_view_dict[view]['ax'].set_yticks([])
+            
+        if plot_orientation:
+            for view,ax in map_view_dict.items():
+                # map_view_dict[view]['ax'].axhline(map_view_dict[view]['atlas'].shape[1]//2,alpha=0.1)
+                # map_view_dict[view]['ax'].axvline(map_view_dict[view]['atlas'].shape[0]//2,alpha=0.1)
+                if view == 'axial':
+                    map_view_dict[view]['ax'].text(0,map_view_dict[view]['atlas'].shape[1]//2 + 2, 'L',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]//2 + 2, 0, 'A',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]-10,map_view_dict[view]['atlas'].shape[1]//2+2,'R',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]//2,map_view_dict[view]['atlas'].shape[1]-10,'P',fontsize=15,fontweight='bold')
+                elif view == 'coronal':
+                    map_view_dict[view]['ax'].text(0,map_view_dict[view]['atlas'].shape[1]//2 + 2, 'L',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]//2 + 2, 0, 'S',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]-10,map_view_dict[view]['atlas'].shape[1]//2+2,'R',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]//2,map_view_dict[view]['atlas'].shape[1],'I',fontsize=15,fontweight='bold')
+                elif view == 'sagittal':
+                    map_view_dict[view]['ax'].text(0,map_view_dict[view]['atlas'].shape[1]//2 + 2, 'P',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]//2 + 2, 0, 'S',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]-10,map_view_dict[view]['atlas'].shape[1]//2+2,'A',fontsize=15,fontweight='bold')
+                    map_view_dict[view]['ax'].text(map_view_dict[view]['atlas'].shape[0]//2,map_view_dict[view]['atlas'].shape[1]-10,'I',fontsize=15,fontweight='bold')
         
         return fig, map_view_dict
         
@@ -481,7 +568,7 @@ class Brainmap:
         ROIs_coord.reset_index(inplace=True)
         ROIs_coord.columns = ['Label','X','Y','Z']
         return ROIs_coord
-        
+
         
 class Geneset:
 
