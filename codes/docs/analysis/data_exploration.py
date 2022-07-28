@@ -326,7 +326,44 @@ class MassUnivariate:
             return full_model.rsquared
         null_model, _ = cls.mass_univariate(df,col_to_drop=col_to_drop, **kwargs)
         return full_model.rsquared - null_model.rsquared
-        
+    
+    @classmethod
+    def get_model_summary(cls,df:pd.DataFrame,
+                              cat_independentVar_cols: Optional[List[str]] = None,
+                              cont_independentVar_cols: Optional[List[str]] = None,
+                              dependentVar_cols: Optional[List[str]] = None,
+                              **kwargs):
+        """
+        Print model summary with Beta coefficient, Pvalues and R squared for an individual statsmodel
+
+        Parameters
+        ----------
+        *same arguments as MassUnivariate.mass_univariate
+        Returns
+        -------
+        result_df : pd.DataFrame
+            DataFrame, index = independent Variable, columns = beta, p-value and Rsquared (fullmodel - null model)
+
+        """
+        #print model summary with beta, p-value and R2
+        result_dict = defaultdict(list)
+        if cat_independentVar_cols is None:
+            cat_independentVar_cols = []
+        if cont_independentVar_cols is None:
+            cont_independentVar_cols = []
+        full_model, _ = cls.mass_univariate(df,cat_independentVar_cols=cat_independentVar_cols,
+                                            cont_independentVar_cols=cont_independentVar_cols,
+                                            dependentVar_cols = dependentVar_cols,**kwargs)
+        result_dict['beta_coefs'] = full_model.params.tolist()
+        result_dict['pvalues'] = full_model.pvalues.tolist()
+        for variable in full_model.params.index.tolist():
+            result_dict['Rsquared'].append(cls.calculate_R_squared_explained(df,col_to_drop=variable,
+                                                                             cat_independentVar_cols=cat_independentVar_cols,
+                                                                             cont_independentVar_cols=cont_independentVar_cols,
+                                                                             dependentVar_cols = dependentVar_cols))
+        result_df = pd.DataFrame(result_dict,index = full_model.params.index)
+        return result_df
+    
     @classmethod
     def check_all_predictors_combo_linear_Reg(cls,df: Optional[pd.DataFrame],
                                             cat_independentVar_cols: Optional[List[str]] = None,
@@ -528,7 +565,7 @@ def matSpDLite(correlation_matrix:np.ndarray,alpha:str = 0.05):
     else:
         adjusted_p_val = alpha/Meffold
     print(f'The adjusted multiple testing correction p-val is alpha/lower(Meff) = {adjusted_p_val}')
-
+    return MeffLi
 
 
 # def save_dict_with_pickle(dictionary: Optional[dict],
