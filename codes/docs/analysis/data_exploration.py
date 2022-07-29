@@ -21,13 +21,19 @@ class MassUnivariate:
     
     @staticmethod
     def mass_univariate(df: Optional[pd.DataFrame] = None,
-                        cat_independentVar_cols: Optional[Union[List[str],
-                                                        List[np.ndarray]]] = None,
-                        cont_independentVar_cols: Optional[Union[List[str],
-                                                                List[np.ndarray]]] = None,
-                        dependentVar_cols: Optional[Union[List[str],
-                                                        List[np.ndarray]]] = None,
-                        scaling: str='both',
+                        cat_independentVar_cols: Union[List[str],
+                                                        np.ndarray,
+                                                        pd.DataFrame,
+                                                        pd.Series] = None,
+                        cont_independentVar_cols: Union[List[str],
+                                                        np.ndarray,
+                                                        pd.DataFrame,
+                                                        pd.Series] = None,
+                        dependentVar_cols: Union[List[str],
+                                                        np.ndarray,
+                                                        pd.DataFrame,
+                                                        pd.Series] = None,
+                        scaling: str='x',
                         col_to_drop : Optional[List[str]] = None,
                         additional_info=None) -> Union[sm.regression.linear_model.RegressionResultsWrapper, pd.DataFrame]:
         """[Returns the model and model summary
@@ -54,22 +60,18 @@ class MassUnivariate:
         cont_independentVar = defaultdict(list)
         dependentVar = defaultdict(list)
         independentVar = dict()
-        if type(cat_independentVar_cols) == list:
+        if isinstance(cat_independentVar_cols, (list,str)):
+            if isinstance(cat_independentVar_cols,str): # if it is just string, put it into list
+                cat_independentVar_cols = [cat_independentVar_cols]
             for idx, cat_independentVar_col in enumerate(cat_independentVar_cols):
-                if type(cat_independentVar_col) == str:
+                if isinstance(cat_independentVar_col,str):
                     cat_independentVar_temp = pd.get_dummies(new_df[cat_independentVar_col].values,
                                                             prefix=cat_independentVar_col,
                                                             drop_first=True).to_dict(orient='list')
-
                     cat_independentVar.update(cat_independentVar_temp)
-                if type(cat_independentVar_col) == np.ndarray:
-                    cat_independentVar_temp = pd.get_dummies(cat_independentVar_col,
-                                                            prefix='Cat_' +
-                                                            str(idx),
-                                                            drop_first=True).to_dict(orient='list')
-
-                    cat_independentVar.update(cat_independentVar_temp)
-        elif type(cat_independentVar_cols) == np.ndarray:
+                else:
+                    raise TypeError('We need list of string, not list of list')
+        elif isinstance(cat_independentVar_cols, np.ndarray):
             if cat_independentVar_cols.ndim == 1:
                 cat_independentVar_temp = pd.get_dummies(cat_independentVar_cols,
                                                         prefix='Cat_',
@@ -81,77 +83,83 @@ class MassUnivariate:
                                                             prefix='Cat_'+col+'_',
                                                             drop_first=True).to_dict(orient='list')
                     cat_independentVar.update(cat_independentVar_temp)
+        
+        elif isinstance(cat_independentVar_cols,(pd.DataFrame,pd.Series)):
+            if isinstance(cat_independentVar_cols,pd.Series): # only 1 column
+                cat_independentVar_cols = pd.DataFrame(cat_independentVar_cols)
+            for col in cat_independentVar_cols.columns:
+                cat_independentVar_temp = pd.get_dummies(cat_independentVar_cols[col].values,
+                                                        prefix=cat_independentVar_cols[col].name,
+                                                        drop_first=True).to_dict(orient='list')
 
-        if type(cont_independentVar_cols) == list:
-            if not cont_independentVar_cols:
-                pass
-            elif type(cont_independentVar_cols[0]) == str:
-                cont_independentVar_temp = np.asarray(
-                    new_df.loc[:, cont_independentVar_cols])
-                if cont_independentVar_temp.ndim == 1:
-                    cont_independentVar_temp = cont_independentVar.reshape(-1, 1)
-                if scaling=='both' or scaling == 'x':
-                    cont_independentVar_temp = StandardScaler().fit_transform(cont_independentVar_temp)
-                cont_independentVar_temp = pd.DataFrame(cont_independentVar_temp)
-                cont_independentVar_temp.columns = cont_independentVar_cols
-                cont_independentVar = cont_independentVar_temp.to_dict(
-                    orient='list')
+                cat_independentVar.update(cat_independentVar_temp)
 
-            elif type(cont_independentVar_cols[0]) == np.ndarray:
-                cont_independentVar_temp = np.hstack(cont_independentVar_cols)
-                if cont_independentVar_temp.ndim == 1:
-                    cont_independentVar_temp = cont_independentVar.reshape(-1, 1)
-                if scaling=='both' or scaling == 'x':
-                    cont_independentVar_temp = StandardScaler().fit_transform(cont_independentVar_temp)
-                cont_independentVar_temp = pd.DataFrame(cont_independentVar_temp)
-                cont_independentVar_temp.columns = [
-                    'Cont_'+str(i) for i in range(cont_independentVar_cols.shape[1])]
-                cont_independentVar = cont_independentVar_temp.to_dict(
-                    orient='list')
+        if isinstance(cont_independentVar_cols,(list,str)):
+            if isinstance(cont_independentVar_cols,str):
+                cont_independentVar_cols = [cont_independentVar_cols]
 
-        elif type(cont_independentVar_cols) == np.ndarray:
-            cont_independentVar_temp = cont_independentVar_cols
+            cont_independentVar_temp = np.asarray(
+                new_df.loc[:, cont_independentVar_cols])
+            if cont_independentVar_temp.ndim == 1:
+                cont_independentVar_temp = cont_independentVar.reshape(-1, 1)
+            if scaling=='both' or scaling == 'x':
+                cont_independentVar_temp = StandardScaler().fit_transform(cont_independentVar_temp)
+            cont_independentVar_temp = pd.DataFrame(cont_independentVar_temp)
+            cont_independentVar_temp.columns = cont_independentVar_cols
+            cont_independentVar = cont_independentVar_temp.to_dict(
+                orient='list')
+            
+        elif isinstance(cont_independentVar_cols,(np.ndarray,pd.DataFrame,pd.Series)):
+            if isinstance(cont_independentVar_cols,(pd.DataFrame,pd.Series)):
+                if isinstance(cont_independentVar_cols,pd.Series):
+                    cont_independentVar_cols = pd.DataFrame(cont_independentVar_cols)
+                cont_independentVar_temp = cont_independentVar_cols.values
+            else:
+                cont_independentVar_temp = cont_independentVar_cols
             if cont_independentVar_temp.ndim == 1:
                 cont_independentVar_temp = cont_independentVar_temp.reshape(-1, 1)
             if scaling=='both' or scaling == 'x':
                 cont_independentVar_temp = StandardScaler().fit_transform(cont_independentVar_temp)
             cont_independentVar_temp = pd.DataFrame(cont_independentVar_temp)
-            cont_independentVar_temp.columns = [
-                'Cont_'+str(i) for i in range(cont_independentVar_temp.shape[1])]
+            if isinstance(cont_independentVar_cols,pd.DataFrame):
+                cont_independentVar_temp.columns = cont_independentVar_cols.columns
+            else:
+                cont_independentVar_temp.columns = [
+                    'Cont_'+str(i) for i in range(cont_independentVar_temp.shape[1])]
             cont_independentVar = cont_independentVar_temp.to_dict(orient='list')
-
-        if type(dependentVar_cols) == list:
-
-            if type(dependentVar_cols[0]) == str:
-                dependentVar_temp = np.asarray(new_df.loc[:, dependentVar_cols])
-                if dependentVar_temp.ndim == 1:
-                    dependentVar_temp = dependentVar_temp.reshape(-1, 1)
-                if scaling=='both' or scaling == 'y':
-                    dependentVar_temp = StandardScaler().fit_transform(dependentVar_temp)
-                dependentVar_temp = pd.DataFrame(dependentVar_temp)
-                dependentVar_temp.columns = dependentVar_cols
-                dependentVar = dependentVar_temp.to_dict(orient='list')
-            elif dependentVar_cols[0] == np.ndarray:
-                dependentVar_temp = np.hstack(dependentVar_cols)
-                if dependentVar_temp.ndim == 1:
-                    dependentVar_temp = dependentVar_temp.reshape(-1, 1)
-                if scaling=='both' or scaling == 'y':
-                    dependentVar_temp = StandardScaler().fit_transform(dependentVar_temp)
-                dependentVar_temp = pd.DataFrame(dependentVar_temp)
-                dependentVar_temp.columns = [
-                    'Dependent_Var_'+str(i) for i in range(dependentVar_cols.shape[1])]
-                dependentVar = dependentVar_temp.to_dict(orient='list')
-        elif type(dependentVar_cols) == np.ndarray:
-            dependentVar_temp = dependentVar_cols
+        
+        if isinstance(dependentVar_cols,(list,str)):
+            if isinstance(dependentVar_cols,str):
+                dependentVar_cols = [dependentVar_cols]
+            
+            dependentVar_temp = np.asarray(new_df.loc[:, dependentVar_cols])
             if dependentVar_temp.ndim == 1:
                 dependentVar_temp = dependentVar_temp.reshape(-1, 1)
             if scaling=='both' or scaling == 'y':
                 dependentVar_temp = StandardScaler().fit_transform(dependentVar_temp)
             dependentVar_temp = pd.DataFrame(dependentVar_temp)
-            dependentVar_temp.columns = [
-                'Dependent_Var_'+str(i) for i in range(dependentVar_cols.shape[1])]
+            dependentVar_temp.columns = dependentVar_cols
             dependentVar = dependentVar_temp.to_dict(orient='list')
-
+            
+        elif isinstance(dependentVar_cols,(np.ndarray,pd.DataFrame,pd.Series)):
+            if isinstance(dependentVar_cols,(pd.DataFrame,pd.Series)):
+                if isinstance(dependentVar_cols,pd.Series):
+                    dependentVar_cols = pd.DataFrame(dependentVar_cols)
+                dependentVar_temp =  dependentVar_cols.values
+            else:
+                dependentVar_temp = dependentVar_cols
+            if dependentVar_temp.ndim == 1:
+                dependentVar_temp = dependentVar_temp.reshape(-1, 1)
+            if scaling=='both' or scaling == 'y':
+                dependentVar_temp = StandardScaler().fit_transform(dependentVar_temp)
+            dependentVar_temp = pd.DataFrame(dependentVar_temp)
+            if isinstance(dependentVar_cols,pd.DataFrame):
+                dependentVar_temp.columns = dependentVar_cols.columns
+            else:
+                dependentVar_temp.columns = [
+                    'Dependent_Var_'+str(i) for i in range(dependentVar_temp.shape[1])]
+            dependentVar = dependentVar_temp.to_dict(orient='list')
+        
         independentVar.update(cont_independentVar)
         independentVar.update(cat_independentVar)
         if not independentVar:
@@ -230,28 +238,79 @@ class MassUnivariate:
         return new_df
 
     @staticmethod
-    def adjust_covariates_with_lin_reg(y: Union[np.ndarray, pd.DataFrame, pd.Series], *covariates: Union[List[np.ndarray], pd.DataFrame, pd.Series]) -> np.ndarray:
-        """[Adjusting for covariates with linear regression; take the residual after fitting to the linear regression model]
-
-        Args:
-            y (np.ndarray): [the variable to be adjusted]
-            *covariates (List[np.ndarray]): list of variables
-        Returns:
-            np.ndarray: [residual]
-
-        Note:
-            Linear Regression Sklearn and sm.OLS gives the same residual and coefs.
-            Here, Standard Scaler is applied to the independent Variables.
+    def adjust_covariates_with_lin_reg(df:pd.DataFrame=None,
+                                       cat_independentVar_cols: Union[List[str],
+                                                                      np.ndarray,
+                                                                      pd.DataFrame,
+                                                                      pd.Series] = None,
+                                       cont_independentVar_cols: Union[List[str],
+                                                                       np.ndarray,
+                                                                       pd.DataFrame,
+                                                                       pd.Series] = None,
+                                       dependentVar_cols: Union[List[str],
+                                                                np.ndarray,
+                                                                pd.DataFrame,
+                                                                pd.Series] = None,
+                                       **massunivariatekwargs) -> pd.DataFrame:
         """
-        X = np.concatenate([i.reshape(-1, 1) if i.ndim ==
-                        1 else i for i in covariates], axis=1)
-        X = StandardScaler().fit_transform(X)
-        lin_reg = LinearRegression()
-        lin_reg.fit(X, y)
-        y_pred = lin_reg.predict(X)
-        new_feature = y-y_pred
-        return new_feature
-    
+        Adjusting covariates by using linear regression
+
+        Parameters
+        ----------
+        df : pd.DataFrame, optional
+            The dataframe if providing strings as covariates. The default is None.
+        cat_independentVar_cols : Union[List[str],np.ndarray,pd.DataFrame,pd.Series], optional
+            The categorical variables. The default is None.
+        cont_independentVar_cols : Union[List[str],np.ndarray,pd.DataFrame,pd.Series], optional
+            The continuous variables. The default is None.
+        dependentVar_cols : Union[List[str],np.ndarray,pd.DataFrame,pd.Series], optional
+            The variables needed to be adjusted. The default is None.
+        *massunivariatekwargs : dict
+            Anything from the MassUnivariate.mass_univariate function.
+
+        Returns
+        -------
+        pd.DataFrame
+            The dataframe of the adjusted variables, the columns will be the same as the one provided. The index will be the same as the df if provided.
+
+        """
+        adjusted_X = defaultdict(list)
+        if isinstance(dependentVar_cols,(np.ndarray,pd.DataFrame,pd.Series)):
+            if isinstance(dependentVar_cols,(pd.DataFrame,pd.Series)):
+                if isinstance(dependentVar_cols,pd.Series):
+                    dependentVar_cols = pd.DataFrame(dependentVar_cols)
+                X = dependentVar_cols.values
+            else:
+                X = dependentVar_cols
+            if X.ndim == 1:
+                X = X.reshape(-1,1)
+            for idx in range(X.shape[1]):
+                model,_ = MassUnivariate.mass_univariate(df = df,
+                                                         cat_independentVar_cols=cat_independentVar_cols,
+                                                         cont_independentVar_cols=cont_independentVar_cols,
+                                                         dependentVar_cols=X[:,idx],**massunivariatekwargs)
+                if isinstance(dependentVar_cols, pd.DataFrame):
+                    adjusted_X[dependentVar_cols.columns.tolist()[idx]] = model.resid.values
+                else:
+                    adjusted_X[idx] = model.resid.values
+                
+        if isinstance(dependentVar_cols,(list,str)):
+            if isinstance(dependentVar_cols,str):
+                dependentVar_cols = [dependentVar_cols]
+            for idx,dependentVar_col in enumerate(dependentVar_cols):
+                model,_ = MassUnivariate.mass_univariate(df = df,
+                                                         cat_independentVar_cols=cat_independentVar_cols,
+                                                         cont_independentVar_cols=cont_independentVar_cols,
+                                                         dependentVar_cols=dependentVar_col,**massunivariatekwargs)
+                if isinstance(dependentVar_col,str):
+                    adjusted_X[dependentVar_col] = model.resid.values
+                else:
+                    adjusted_X[idx] = model.resid.values
+        adjusted_X = pd.DataFrame(adjusted_X)
+        if df is not None:
+            adjusted_X.index = df.index
+        return adjusted_X
+        
     @classmethod
     def calculate_mass_univariate_across_multiple_thresholds(
             cls,
