@@ -56,16 +56,40 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
                     xlabel: str = None,
                     ylabel: str = None,
                     axes = None,scaling = 'both', **figkwargs) -> None:
-    """[Plot Linear Regression]
+    """
+    Plot linear regression and calculating the pval and beta coefficient.
+    You can use it to visualise across different populations and generate separate pval and beta coeficient for each population (hue) or for all of them combined
 
-    Args:
-        x (np.ndarray): [array -like independent var]
-        y (np.ndarray): [array -like dependent var]
-        title (str, optional): [description]. Defaults to None.
-        xlabel (str, optional): [description]. Defaults to None.
-        ylabel (str, optional): [description]. Defaults to None.
-    Return:
-        Plot
+    Parameters
+    ----------
+    x : Union[np.ndarray, pd.DataFrame, pd.Series, str]
+        DESCRIPTION.
+    y : Union[np.ndarray, pd.DataFrame, pd.Series, str]
+        DESCRIPTION.
+    data : Optional[pd.DataFrame], optional
+        DESCRIPTION. The default is None.
+    hue : Optional[str], optional
+        DESCRIPTION. The default is None.
+    combined : Optional[bool], optional
+        DESCRIPTION. The default is False.
+    title : str, optional
+        DESCRIPTION. The default is None.
+    xlabel : str, optional
+        DESCRIPTION. The default is None.
+    ylabel : str, optional
+        DESCRIPTION. The default is None.
+    axes : TYPE, optional
+        DESCRIPTION. The default is None.
+    scaling : TYPE, optional
+        DESCRIPTION. The default is 'both'.
+    **figkwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None
+        DESCRIPTION.
+
     """
     if isinstance(x, (pd.DataFrame, pd.Series)):
         x = x.values
@@ -109,7 +133,7 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
                 ax.plot(x[:, 0], y, 'o', label='total',alpha=.01,markersize=figkwargs['markersize'])
                 handles, labels = ax.get_legend_handles_labels()
                 ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
-                    label=beta_label, color=handles[len(handles)-1].get_color(),linedwith=figkwargs['linedwidth'])
+                    label=beta_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
             ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
                             'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson', label=unique_label)
             # plt.figtext(0, 0, r'$\beta$=%0.03f, pval = %0.03f' %
@@ -127,22 +151,17 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
         fig, ax = plt.subplots()
     else:
         ax = axes
-    if not hue:
-        plotting(x, y)
+    if hue is None:
+        plotting(x, y,scaling=scaling)
     else:
         data = data.reset_index(drop=True)
         unique_hues = data[hue].unique()
-        scalerx = StandardScaler().fit(x)
-        x = scalerx.transform(x)
-        scalery = StandardScaler().fit(y)
-        y = scalery.transform(y)
         for idx, unique_hue in enumerate(unique_hues):
             temp_data = data[data[hue] == unique_hue].index.to_list()
             plotting(x[temp_data], y[temp_data],
-                     unique_label=unique_hue,scaling=False)
+                     unique_label=unique_hue,scaling=scaling)
         if combined:
-            plotting(x,y,combined=True)
-            
+            plotting(x,y,combined=True,scaling=scaling)
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
