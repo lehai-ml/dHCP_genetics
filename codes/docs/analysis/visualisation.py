@@ -334,8 +334,8 @@ class Brainmap:
             cb_orientation = {'horizontal','vertical'} if you want your change your colorbar orientation. Default horizontal next to the last axes.
             cb_title = str. name of the colorbar
             figsize = Default (20,10)
-            update_outline_label_legends: bool. Default True. The outline is updated if the the same legend is found in two regions.
-            update_outline_regions_to_hide: bool. Default False. Update the outline after using regions_to_hide. 
+            outline_label_legends: bool. Default True. The outline is updated if the the same legend is found in two regions.
+            outline_regions_to_hide: bool. Default False. Update the outline after using regions_to_hide. 
         Raises
         ------
         ValueError
@@ -391,9 +391,9 @@ class Brainmap:
                     for region in label:
                         brain_map.atlas[brain_map.atlas==region] = label[0]
             
-            if 'update_outline_label_legends' not in figkwargs:
-                figkwargs['update_outline_label_legends'] = True
-            if figkwargs['update_outline_label_legends']:
+            if 'outline_label_legends' not in figkwargs:
+                figkwargs['outline_label_legends'] = True
+            if figkwargs['outline_label_legends']:
                 original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
                 original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
                 original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
@@ -402,9 +402,9 @@ class Brainmap:
         if regions_to_hide is not None:
             for region in regions_to_hide:
                 brain_map.atlas[brain_map.atlas == region] = np.nan
-                if 'update_outline_regions_to_hide' not in figkwargs:
-                    figkwargs['update_outline_regions_to_hide'] = True
-                if figkwargs['update_outline_regions_to_hide']:
+                if 'outline_regions_to_hide' not in figkwargs:
+                    figkwargs['outline_regions_to_hide'] = True
+                if figkwargs['outline_regions_to_hide']:
                     original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
                     original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
                     original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
