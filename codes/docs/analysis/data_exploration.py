@@ -9,53 +9,59 @@ import statsmodels.api as sm
 from scipy.stats import ttest_ind, zscore
 import pandas as pd
 import numpy as np
+
 from sklearn.preprocessing import StandardScaler, LabelBinarizer
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
 import tqdm
 # import pickle
 from statsmodels.multivariate.cancorr import CanCorr
 
 
+
+
 class MassUnivariate:
     
     @staticmethod
-    def mass_univariate(df: Optional[pd.DataFrame] = None,
-                        cat_independentVar_cols: Union[List[str],
-                                                        np.ndarray,
-                                                        pd.DataFrame,
-                                                        pd.Series] = None,
-                        cont_independentVar_cols: Union[List[str],
-                                                        np.ndarray,
-                                                        pd.DataFrame,
-                                                        pd.Series] = None,
-                        dependentVar_cols: Union[List[str],
-                                                        np.ndarray,
-                                                        pd.DataFrame,
-                                                        pd.Series] = None,
-                        scaling: str='x',
-                        col_to_drop : Optional[List[str]] = None,
-                        additional_info=None) -> Union[sm.regression.linear_model.RegressionResultsWrapper, pd.DataFrame]:
-        """[Returns the model and model summary
-            Performs univariate test, implements statsmodel.api.OLS]
-
-        Args:
-            df (Optional[pd.DataFrame]): [pandas data frame, where each row is one observation]
-            cat_independentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [list of categorical variables, such that they will be converted to dummies by pandas]. Defaults to None.
-            cont_independentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [list of continuous variables, they will be appended to cat_independentVar_cols]. Defaults to None.
-            dependentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [the dependent variable, the ]. Defaults to None.
-            scaling [str]: Default = both. ('x','y','both','none')
-            If none, we will not perform standard scaler, 'both' we will perform on both x (independent variable- feature) and y (dependent variable- target)
-            col_to_drop [list[str]] = if we want to remove any column from the independent Variable before fitting the model.
-            additional_info ([type], optional): [additional columns to be appended]. Defaults to None.
-
-        Returns:
-            Union[sm.regression.linear_model.RegressionResultsWrapper, pd.DataFrame]: [the statsmodel model and dataframe of the model summary, where cols are independent variables and const]
+    def prepare_data(df: Optional[pd.DataFrame] = None,
+                    cat_independentVar_cols: Union[List[str],
+                                                    np.ndarray,
+                                                    pd.DataFrame,
+                                                    pd.Series] = None,
+                    cont_independentVar_cols: Union[List[str],
+                                                    np.ndarray,
+                                                    pd.DataFrame,
+                                                    pd.Series] = None,
+                    dependentVar_cols: Union[List[str],
+                                                    np.ndarray,
+                                                    pd.DataFrame,
+                                                    pd.Series] = None,
+                    scaling: str='x',
+                    col_to_drop : Optional[List[str]] = None):
         """
-        model_summary = defaultdict(list)
-        if type(df) == pd.DataFrame:
-            new_df = df.copy()
+        prepare the dependent and independent variables.
 
+        Parameters
+        ----------
+        df (Optional[pd.DataFrame]): [pandas data frame, where each row is one observation]
+        cat_independentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [list of categorical variables, such that they will be converted to dummies by pandas]. Defaults to None.
+        cont_independentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [list of continuous variables, they will be appended to cat_independentVar_cols]. Defaults to None.
+        dependentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [the dependent variable, the ]. Defaults to None.
+        scaling [str]: Default = both. ('x','y','both','none')
+        If none, we will not perform standard scaler, 'both' we will perform on both x (independent variable- feature) and y (dependent variable- target)
+        col_to_drop [list[str]] = if we want to remove any column from the independent Variable before fitting the model.
+
+        Raises
+        ------
+        TypeError
+            cat independentVar and cont independentVar needs to be list of strings, not list of list.
+
+        Returns
+        -------
+        dependentvar and independentvar pd.DataFrames.
+
+        """
+        if df is not None:
+            new_df = df.copy()
         cat_independentVar = defaultdict(list)
         cont_independentVar = defaultdict(list)
         dependentVar = defaultdict(list)
@@ -80,7 +86,7 @@ class MassUnivariate:
             else:
                 for col in range(cat_independentVar_cols.shape[1]):
                     cat_independentVar_temp = pd.get_dummies(cat_independentVar_cols[:, col],
-                                                            prefix='Cat_'+col+'_',
+                                                            prefix='Cat_'+str(col)+'_',
                                                             drop_first=True).to_dict(orient='list')
                     cat_independentVar.update(cat_independentVar_temp)
         
@@ -177,7 +183,53 @@ class MassUnivariate:
                 # print('You might be trying to remove the categorical data, which in this function is written as Gender_2.0 or sth.')
                 independentVar = independentVar.drop([i for i in col_to_drop if i in independentVar.columns],axis=1)
         dependentVar = pd.DataFrame(dependentVar)
+        
+        return dependentVar,independentVar
 
+    
+    @staticmethod
+    def mass_univariate(df: Optional[pd.DataFrame] = None,
+                        cat_independentVar_cols: Union[List[str],
+                                                        np.ndarray,
+                                                        pd.DataFrame,
+                                                        pd.Series] = None,
+                        cont_independentVar_cols: Union[List[str],
+                                                        np.ndarray,
+                                                        pd.DataFrame,
+                                                        pd.Series] = None,
+                        dependentVar_cols: Union[List[str],
+                                                        np.ndarray,
+                                                        pd.DataFrame,
+                                                        pd.Series] = None,
+                        scaling: str='x',
+                        col_to_drop : Optional[List[str]] = None,
+                        additional_info=None) -> Union[sm.regression.linear_model.RegressionResultsWrapper, pd.DataFrame]:
+        """[Returns the model and model summary
+            Performs univariate test, implements statsmodel.api.OLS]
+
+        Args:
+            df (Optional[pd.DataFrame]): [pandas data frame, where each row is one observation]
+            cat_independentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [list of categorical variables, such that they will be converted to dummies by pandas]. Defaults to None.
+            cont_independentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [list of continuous variables, they will be appended to cat_independentVar_cols]. Defaults to None.
+            dependentVar_cols (Optional[Union[List[str], List[np.ndarray]]], optional): [the dependent variable, the ]. Defaults to None.
+            scaling [str]: Default = both. ('x','y','both','none')
+            If none, we will not perform standard scaler, 'both' we will perform on both x (independent variable- feature) and y (dependent variable- target)
+            col_to_drop [list[str]] = if we want to remove any column from the independent Variable before fitting the model.
+            additional_info ([type], optional): [additional columns to be appended]. Defaults to None.
+
+        Returns:
+            Union[sm.regression.linear_model.RegressionResultsWrapper, pd.DataFrame]: [the statsmodel model and dataframe of the model summary, where cols are independent variables and const]
+        """
+        model_summary = defaultdict(list)
+        
+        dependentVar, independentVar = MassUnivariate.prepare_data(df = df,
+                                    cat_independentVar_cols=cat_independentVar_cols,
+                                    cont_independentVar_cols=cont_independentVar_cols,
+                                    dependentVar_cols=dependentVar_cols,
+                                    scaling=scaling,
+                                    col_to_drop=col_to_drop)
+
+        
         for feature in dependentVar.columns:
             last_model = sm.OLS(dependentVar.loc[:, feature], independentVar).fit()
             result = [None] * (len(last_model.params) + len(last_model.pvalues))
@@ -251,6 +303,7 @@ class MassUnivariate:
                                                                 np.ndarray,
                                                                 pd.DataFrame,
                                                                 pd.Series] = None,
+                                      return_model_adjuster:bool=False,
                                        **massunivariatekwargs) -> pd.DataFrame:
         """
         Adjusting covariates by using linear regression
@@ -265,6 +318,8 @@ class MassUnivariate:
             The continuous variables. The default is None.
         dependentVar_cols : Union[List[str],np.ndarray,pd.DataFrame,pd.Series], optional
             The variables needed to be adjusted. The default is None.
+        return_model_adjuster:bool
+            Return a dictionary of linear models used to fit.
         *massunivariatekwargs : dict
             Anything from the MassUnivariate.mass_univariate function.
 
@@ -275,6 +330,7 @@ class MassUnivariate:
 
         """
         adjusted_X = defaultdict(list)
+        model_list = defaultdict(list)
         if isinstance(dependentVar_cols,(np.ndarray,pd.DataFrame,pd.Series)):
             if isinstance(dependentVar_cols,(pd.DataFrame,pd.Series)):
                 if isinstance(dependentVar_cols,pd.Series):
@@ -293,7 +349,8 @@ class MassUnivariate:
                     adjusted_X[dependentVar_cols.columns.tolist()[idx]] = model.resid.values
                 else:
                     adjusted_X[idx] = model.resid.values
-                
+                if return_model_adjuster:
+                    model_list[idx] = model
         if isinstance(dependentVar_cols,(list,str)):
             if isinstance(dependentVar_cols,str):
                 dependentVar_cols = [dependentVar_cols]
@@ -306,9 +363,13 @@ class MassUnivariate:
                     adjusted_X[dependentVar_col] = model.resid.values
                 else:
                     adjusted_X[idx] = model.resid.values
+                if return_model_adjuster:
+                    model_list[idx] = model
         adjusted_X = pd.DataFrame(adjusted_X)
         if df is not None:
             adjusted_X.index = df.index
+        if return_model_adjuster:
+            return adjusted_X, model_list
         return adjusted_X
         
     @classmethod
@@ -583,7 +644,6 @@ class MassUnivariate:
         
         return summary_table
         
-    
 def matSpDLite(correlation_matrix:np.ndarray,alpha:str = 0.05):
     """
     Adapted from Nyholt DR R script.
