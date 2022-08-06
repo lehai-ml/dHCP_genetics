@@ -16,7 +16,7 @@ import tqdm
 # import pickle
 from statsmodels.multivariate.cancorr import CanCorr
 
-
+from numpy.core._exceptions import UFuncTypeError
 
 
 class MassUnivariate:
@@ -401,18 +401,30 @@ class MassUnivariate:
         """
         new_df = pd.DataFrame()
         for threshold in tqdm.tqdm(thresholds):
-            _, temp_model_summary = cls.mass_univariate(
-                df,
-                cat_independentVar_cols=cat_independentVar_cols,
-                cont_independentVar_cols=cont_independentVar_cols + [threshold],
-                dependentVar_cols=dependentVar_cols,**kwargs)
-    
+            try:
+                _, temp_model_summary = cls.mass_univariate(
+                    df,
+                    cat_independentVar_cols=cat_independentVar_cols,
+                    cont_independentVar_cols=cont_independentVar_cols + [threshold],
+                    dependentVar_cols=dependentVar_cols,**kwargs)
+            except UFuncTypeError:
+                if isinstance(cont_independentVar_cols, np.ndarray):
+                    threshold_array = df[threshold].values.reshape(-1,1)
+                    updated_cont_independentVar_cols = np.hstack([cont_independentVar_cols,threshold_array])
+                    _, temp_model_summary = cls.mass_univariate(
+                        df,
+                        cat_independentVar_cols=cat_independentVar_cols,
+                        cont_independentVar_cols=updated_cont_independentVar_cols,
+                        dependentVar_cols=dependentVar_cols,**kwargs)
+                    threshold_idx = updated_cont_independentVar_cols.shape[1]-1
             temp_model_summary.reset_index(drop=False, inplace=True)
             temp_model_summary.rename(
                 {
                     'index': 'Connection',
                     threshold + '_coef': 'PRS_coef',
-                    threshold + '_pval': 'PRS_pval'
+                    threshold + '_pval': 'PRS_pval',
+                    f'Cont_{threshold_idx}_coef':'PRS_coef',
+                    f'Cont_{threshold_idx}_pval':'PRS_pval',
                 },
                 axis=1,
                 inplace=True)
