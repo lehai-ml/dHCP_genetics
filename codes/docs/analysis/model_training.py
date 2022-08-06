@@ -19,7 +19,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator,TransformerMixin
 import statsmodels.api as sm
-
+from sklearn.decomposition import PCA
 
 
 class Metrics:
@@ -114,6 +114,39 @@ class Metrics:
                 model_summary['test_score'][score].append(Metrics.score(y_test,model.predict(X_test),scoring=score)[score])
         
         return model_summary
+    
+class PCA_adjuster(BaseEstimator,TransformerMixin):
+    
+    def __init__(self,variables_to_reduce_by_PCA_idx:Union[List[int],List[str]]=None,
+                  list_of_vars:List[str]=None,
+                 n_components:Union[float,int]=None):
+        
+        if variables_to_reduce_by_PCA_idx is not None:
+            if isinstance(variables_to_reduce_by_PCA_idx,str):
+                variables_to_reduce_by_PCA_idx = [variables_to_reduce_by_PCA_idx]
+            if isinstance(variables_to_reduce_by_PCA_idx[0], str):
+                if list_of_vars is None:
+                    raise KeyError('list of vars is missing')
+                variables_to_reduce_by_PCA_idx = [idx for idx,label in enumerate(list_of_vars) if label in variables_to_reduce_by_PCA_idx]
+        self.variables_to_reduce_by_PCA_idx=variables_to_reduce_by_PCA_idx        
+        self.list_of_vars = list_of_vars
+        self.n_components = n_components
+
+    def fit(self,X:np.ndarray,y:np.ndarray=None):
+        self.covariates_not_reduced_by_PCA_idx = [i for i in range(X.shape[1]) if i not in self.variables_to_reduce_by_PCA_idx]
+        self.pca = PCA(n_components=self.n_components).fit(X[:,self.variables_to_reduce_by_PCA_idx])
+        self.X_pca = self.pca.transform(X[:,self.variables_to_reduce_by_PCA_idx])
+        # self.model,mass_univariate = data_exploration.MassUnivariate.mass_univariate(cont_independentVar_cols=np.hstack([X[:,covariates_not_reduced_by_PCA_idx],
+        #                                                                                     y.reshape(-1,1)]),
+        #                                                 dependentVar_cols=self.X_pca)
+        self.covariates = X[:,self.covariates_not_reduced_by_PCA_idx]
+        return self 
+    def transform(self,X:np.ndarray,y:np.ndarray=None):
+        new_X_pca = self.pca.transform(X[:,self.variables_to_reduce_by_PCA_idx])
+        new_X = np.hstack([new_X_pca,X[:,self.covariates_not_reduced_by_PCA_idx]])
+        return new_X
+        
+        
 
 class AdjustingScaler(BaseEstimator,TransformerMixin):
     
@@ -138,21 +171,25 @@ class AdjustingScaler(BaseEstimator,TransformerMixin):
         None.
 
         """
-        if isinstance(cat_independentVar_idx,(list,str)):
-            if list_of_vars is None:
-                raise KeyError('list of vars is missing')
-            if isinstance(cat_independentVar_idx, str):
+        if cat_independentVar_idx is not None:
+            if isinstance(cat_independentVar_idx,str):
                 cat_independentVar_idx = [cat_independentVar_idx]
-            cat_independentVar_idx = [idx for idx,label in enumerate(list_of_vars) if label in cat_independentVar_idx]
-        if isinstance(cont_independentVar_idx, (list,str)):
-            if list_of_vars is None:
-                raise KeyError('list of vars is missing')
-            if isinstance(cont_independentVar_idx, str):
-                cont_independentVar_idx = [cont_independentVar_idx]
-            cont_independentVar_idx = [idx for idx,label in enumerate(list_of_vars) if label in cont_independentVar_idx]        
-            
+            if isinstance(cat_independentVar_idx[0], str):
+                if list_of_vars is None:
+                    raise KeyError('list of vars is missing')
+                cat_independentVar_idx = [idx for idx,label in enumerate(list_of_vars) if label in cat_independentVar_idx]
         self.cat_independentVar_idx=cat_independentVar_idx
+        
+        if cont_independentVar_idx is not None:
+            if isinstance(cont_independentVar_idx,str):
+                cont_independentVar_idx = [cont_independentVar_idx]
+            if isinstance(cont_independentVar_idx[0], str):
+                if list_of_vars is None:
+                    raise KeyError('list of vars is missing')
+                cont_independentVar_idx = [idx for idx,label in enumerate(list_of_vars) if label in cont_independentVar_idx]
+        
         self.cont_independentVar_idx=cont_independentVar_idx
+        self.list_of_vars = list_of_vars
         
     def fit(self,X:np.ndarray,
             y:np.ndarray=None):
@@ -268,3 +305,45 @@ class NestedCV:
                 model_summary[target][f'split_{split_no}']['estimator'] = estimator
 
         return model_summary
+    @staticmethod
+    def generate_stratified_folds(df:Union[np.ndarray,pd.DataFrame],n_splits:int=5,target:Union[str]=None):
+        stratified_split = StratifiedKFold(n_splits)
+        if isinstance(target,list):
+            if isinstance(target[0],str) and isinstance(df,pd.DataFrame):
+                target = df[target].copy()
+            if isinstance(target[0],int) and isinstance(df,np.ndarray):
+                target = df[:,target].copy()
+            if isinstance(target[0],int) and isinstance(df,pd.DataFrame):
+                target = df.loc[:,target].copy()
+        target_bins = 
+        
+        def attempting_train_test_split(df, stratify_by, idx, test_size,random_state):
+            try:
+                train, test = train_test_split(df, stratify=stratify_by, test_size=test_size, random_state=random_state)
+                return train, test
+            except ValueError:
+                stratification_list.pop()  # remove the last iteration
+                print('changing bins for %d argument' % idx)
+    
+        input_bins = bins
+        stratification_list = []
+        for idx, stratification in enumerate(stratify_by_args):
+            bins = input_bins
+            while True:
+                if isinstance(stratification, str):
+                    strat = df.loc[:, stratification].values
+                    if isinstance(strat[0], float):
+                        strat = pd.cut(strat, bins=bins, labels=False)
+                elif isinstance(stratification, np.ndarray):
+                    strat = stratification
+                    if isinstance(stratification[0], float):
+                        strat = pd.cut(strat, bins=bins, labels=False)
+                stratification_list.append(strat)
+                stratify_by = [''.join(map(lambda x: str(x), i))
+                               for i in zip(*stratification_list)]
+                train_test = attempting_train_test_split(df, stratify_by, idx,test_size=test_size,random_state=random_state)
+                if train_test:
+                    break
+                else:
+                    bins -= 1
+        
