@@ -6,7 +6,10 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import pearsonr
-from . import data_exploration
+try:
+    import data_exploration
+except ModuleNotFoundError:
+    from . import data_exploration
 import seaborn as sns
 from scipy.stats import ttest_ind, pearsonr
 import statsmodels.api as sm
@@ -55,17 +58,43 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
                     title: str = None,
                     xlabel: str = None,
                     ylabel: str = None,
-                    axes = None,scaling = 'both', **figkwargs) -> None:
-    """[Plot Linear Regression]
+                    ax = None,scaling = 'both', **figkwargs) -> None:
+    """
+    Fit linear regression, where y~x. calculates the pval and beta coefficient.
+    
+    You can use it to visualise across different populations and generate separate pval and beta coeficient for each population (hue) or for all of them combined
+    Note: when you have two variables, the pearson's correlation coefficient is the same as the standardized beta coefs.
+    Parameters
+    ----------
+    x : Union[np.ndarray, pd.DataFrame, pd.Series, str]
+        value on x.
+    y : Union[np.ndarray, pd.DataFrame, pd.Series, str]
+        value on y.
+    data : Optional[pd.DataFrame], optional
+        if providing string x,y, then data will be the dataframe. The default is None.
+    hue : Optional[str], optional
+        separate data point by another value in the dataframe (e.g. cohort). It will calculate separate beta and p-value. The default is None.
+    combined : Optional[bool], optional
+        If use, calculate the total p-val and beta coefs. The default is False.
+    title : str, optional
+        Title of the graph. The default is None.
+    xlabel : str, optional
+         label on x axis. The default is None.
+    ylabel : str, optional
+        label on y axis. The default is None.
+    axes : TYPE, optional
+        if provided plt.subplots. The default is None.
+    scaling : TYPE, optional
+        whether to scale x and y. The default is 'both'.
+    **figkwargs :
+        linewdith: float
+        markersize: float
+        legend_loc {outside, inside}
+    Returns
+    -------
+    ax
+        The ax plot.
 
-    Args:
-        x (np.ndarray): [array -like independent var]
-        y (np.ndarray): [array -like dependent var]
-        title (str, optional): [description]. Defaults to None.
-        xlabel (str, optional): [description]. Defaults to None.
-        ylabel (str, optional): [description]. Defaults to None.
-    Return:
-        Plot
     """
     if isinstance(x, (pd.DataFrame, pd.Series)):
         x = x.values
@@ -83,9 +112,13 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
         figkwargs['linewidth'] = 1.5
     if 'markersize' not in figkwargs:
         figkwargs['markersize'] = 1.5
+    if 'hide_CI' not in figkwargs:
+        figkwargs['hide_CI'] = False
+    
     def plotting(x, y, unique_label=None, combined=False, scaling=scaling):
         model, _ = data_exploration.MassUnivariate.mass_univariate(cont_independentVar_cols=x,
-                                                    dependentVar_cols=y,scaling=scaling)  # will perform standaridzation inside the function
+                                                                   dependentVar_cols=y,
+                                                                   scaling=scaling)  # will perform standaridzation inside the function
         if scaling == 'both':
             x = StandardScaler().fit_transform(x)
             y = StandardScaler().fit_transform(y)
@@ -100,8 +133,9 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
         coefs = model.params.values[1]
         p_value = model.pvalues.values[1]
         
-        if not unique_label:
+        if unique_label is None:
             beta_label = r'$\beta$=%0.03f, pval = %0.03f' % (coefs, p_value)
+            
             if not combined:
                 ax.plot(x[:, 0], y, '.', label='target',markersize=figkwargs['markersize'])
                 ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=beta_label,linewidth=figkwargs['linewidth'])
@@ -109,11 +143,10 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
                 ax.plot(x[:, 0], y, 'o', label='total',alpha=.01,markersize=figkwargs['markersize'])
                 handles, labels = ax.get_legend_handles_labels()
                 ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
-                    label=beta_label, color=handles[len(handles)-1].get_color(),linedwith=figkwargs['linedwidth'])
-            ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
-                            'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson', label=unique_label)
-            # plt.figtext(0, 0, r'$\beta$=%0.03f, pval = %0.03f' %
-            #             (coefs, p_value))
+                    label=beta_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
+            if not figkwargs['hide_CI']:
+                ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
+                                'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson', label=unique_label)
 
         else:
             beta_label = r'$\beta$=%0.03f, pval = %0.03f' % (coefs, p_value)
@@ -121,28 +154,22 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
             handles, labels = ax.get_legend_handles_labels()
             ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
                     label=beta_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
-            ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
-                            'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson')
-    if not axes:
+            if not figkwargs['hide_CI']:
+                ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
+                                'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson')
+    if ax is None:
         fig, ax = plt.subplots()
-    else:
-        ax = axes
-    if not hue:
-        plotting(x, y)
+    if hue is None:
+        plotting(x, y,scaling=scaling)
     else:
         data = data.reset_index(drop=True)
         unique_hues = data[hue].unique()
-        scalerx = StandardScaler().fit(x)
-        x = scalerx.transform(x)
-        scalery = StandardScaler().fit(y)
-        y = scalery.transform(y)
         for idx, unique_hue in enumerate(unique_hues):
             temp_data = data[data[hue] == unique_hue].index.to_list()
             plotting(x[temp_data], y[temp_data],
-                     unique_label=unique_hue,scaling=False)
+                     unique_label=unique_hue,scaling=scaling)
         if combined:
-            plotting(x,y,combined=True)
-            
+            plotting(x,y,combined=True,scaling=scaling)
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -153,30 +180,58 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
     else:
         ax.legend(loc='lower left')
     ax.set_title(title)
+    return ax
 
-
-def plot_correlation(x: np.ndarray,
-                     y: np.ndarray,
-                     title:str=None, 
-                     xlabel:str=None, 
-                     ylabel:str=None,
-                     c:np.ndarray = None,
-                     cmap = 'jet',
-                     colorbar_label=None):
-    lin_reg = LinearRegression()
-    lin_reg.fit(np.asarray(x).reshape(-1, 1), np.asarray(y))
-    if c is not None:
-        plt.scatter(x,y,c=c,cmap=cmap)
-        plt.colorbar(label = colorbar_label)
-    else:
-        plt.scatter(x, y)
-    plt.plot(np.asarray(x), lin_reg.predict(
-        np.asarray(x).reshape(-1, 1)).reshape(-1),'-',color='orange')
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    corr, p = pearsonr(x, y)
-    plt.figtext(0, 0, 'corr=%0.03f, pval=%0.03f' % (corr, p))
+# def plot_correlation(x: Union[np.ndarray,pd.DataFrame,pd.Series,str],
+#                      y: Union[np.ndarray,pd.DataFrame,pd.Series,str],
+#                      data:pd.DataFrame=None,
+#                      title:str=None, 
+#                      xlabel:str=None, 
+#                      ylabel:str=None,
+#                      c:np.ndarray = None,
+#                      cmap = 'jet',
+#                      colorbar_label=None,
+#                      scaling=None,
+#                      ax=None):
+#     if isinstance(x,(pd.Series,pd.DataFrame)):
+#         x = x.values
+#     elif isinstance(x,str):
+#         if data is None:
+#             raise ValueError('dataframe is missing')
+#         x = data.loc[:,x].values
+#     if isinstance(y,(pd.Series,pd.DataFrame)):
+#         y = y.values
+#     elif isinstance(x,str):
+#         if data is None:
+#             raise ValueError('dataframe is missing')
+#         y = data.loc[:,y].values
+#     if x.ndim == 1:
+#         x = x.reshape(-1,1)
+#     if y.ndim == 1:
+#         y = y.reshape(-1,1)
+#     if scaling == 'both':
+#         x = StandardScaler().fit_transform(x)
+#         y = StandardScaler().fit_transform(y)
+#     elif scaling == 'x':
+#         x = StandardScaler().fit_transform(x)
+#     elif scaling == 'y':
+#         y = StandardScaler().fit_transform(y)
+        
+#     lin_reg = LinearRegression()
+#     lin_reg.fit(x,y)# best fit line
+    
+#     if c is not None:
+#         plt.scatter(x,y,c=c,cmap=cmap)
+#         plt.colorbar(label = colorbar_label)
+#     else:
+#         plt.scatter(x, y)
+#     plt.plot(np.asarray(x), lin_reg.predict(
+#         np.asarray(x).reshape(-1, 1)).reshape(-1),'-',color='orange')
+#     plt.xlabel(xlabel)
+#     plt.ylabel(ylabel)
+#     plt.title(title)
+    # corr, p = pearsonr(x, y)
+#     plt.figtext(0, 0, 'corr=%0.03f, pval=%0.03f' % (corr, p))
 
 def draw_box_plots(df,
                    dependentVar=None,
@@ -335,7 +390,11 @@ class Brainmap:
             cb_title = str. name of the colorbar
             figsize = Default (20,10)
             outline_label_legends: bool. Default True. The outline is updated if the the same legend is found in two regions.
-            outline_regions_to_hide: bool. Default False. Update the outline after using regions_to_hide. 
+            outline_regions_to_hide: bool. Default True. The outline is not updated after using regions_to_hide. 
+            label_legend_bbox_to_anchor:(-2.5, -1,0,0)
+            label_legend_ncol : 6
+            label_legend_loc: 'lower left'
+            label_legend_fontsize: 'medium' or float
         Raises
         ------
         ValueError
@@ -404,7 +463,7 @@ class Brainmap:
                 brain_map.atlas[brain_map.atlas == region] = np.nan
                 if 'outline_regions_to_hide' not in figkwargs:
                     figkwargs['outline_regions_to_hide'] = True
-                if figkwargs['outline_regions_to_hide']:
+                if not figkwargs['outline_regions_to_hide']:
                     original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
                     original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
                     original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
@@ -502,6 +561,14 @@ class Brainmap:
             elif figkwargs['cb_orientation'] == 'horizontal':
                 cb.ax.set_xlabel(figkwargs['cb_title'],rotation=0,fontsize=12,fontweight='bold')
         
+        if 'label_legend_bbox_to_anchor' not in figkwargs:
+            figkwargs['label_legend_bbox_to_anchor'] = (-2.5, -1,0,0)
+        if 'label_legend_ncol' not in figkwargs:
+            figkwargs['label_legend_ncol'] = 6
+        if 'label_legend_loc' not in figkwargs:
+            figkwargs['label_legend_loc'] = 'lower left'
+        if 'label_legend_fontsize' not in figkwargs:
+            figkwargs['label_legend_fontsize'] = 'medium'
         if label_legend is not None:
             #to plot legends?
             if legends:
@@ -513,7 +580,12 @@ class Brainmap:
                 temp_im = map_view_dict[list(map_view_dict)[0]]['im']
                 colors = [temp_im.cmap(temp_im.norm(value)) for value in values]
                 patches = [mpatches.Patch(color=colors[idx], label=label_legend[int(i)]) for idx, i in enumerate(values) if i in label_legend]
-                plt.legend(handles=patches, bbox_to_anchor=(-2.5, -1,0,0), loc='lower left',ncol=6,frameon=False)
+                plt.legend(handles=patches, 
+                           bbox_to_anchor=figkwargs['label_legend_bbox_to_anchor'], 
+                           loc=figkwargs['label_legend_loc'],
+                           ncol=figkwargs['label_legend_ncol'],
+                           fontsize = figkwargs['label_legend_fontsize'],
+                           frameon=False)
 
         for view in map_view:
             sns.despine(bottom=True,left=True,right=True)
