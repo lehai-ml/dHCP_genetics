@@ -305,45 +305,6 @@ class NestedCV:
                 model_summary[target][f'split_{split_no}']['estimator'] = estimator
 
         return model_summary
-    @staticmethod
-    def generate_stratified_folds(df:Union[np.ndarray,pd.DataFrame],n_splits:int=5,target:Union[str]=None):
-        stratified_split = StratifiedKFold(n_splits)
-        if isinstance(target,list):
-            if isinstance(target[0],str) and isinstance(df,pd.DataFrame):
-                target = df[target].copy()
-            if isinstance(target[0],int) and isinstance(df,np.ndarray):
-                target = df[:,target].copy()
-            if isinstance(target[0],int) and isinstance(df,pd.DataFrame):
-                target = df.loc[:,target].copy()
-        target_bins = 
-        
-        def attempting_train_test_split(df, stratify_by, idx, test_size,random_state):
-            try:
-                train, test = train_test_split(df, stratify=stratify_by, test_size=test_size, random_state=random_state)
-                return train, test
-            except ValueError:
-                stratification_list.pop()  # remove the last iteration
-                print('changing bins for %d argument' % idx)
     
-        input_bins = bins
-        stratification_list = []
-        for idx, stratification in enumerate(stratify_by_args):
-            bins = input_bins
-            while True:
-                if isinstance(stratification, str):
-                    strat = df.loc[:, stratification].values
-                    if isinstance(strat[0], float):
-                        strat = pd.cut(strat, bins=bins, labels=False)
-                elif isinstance(stratification, np.ndarray):
-                    strat = stratification
-                    if isinstance(stratification[0], float):
-                        strat = pd.cut(strat, bins=bins, labels=False)
-                stratification_list.append(strat)
-                stratify_by = [''.join(map(lambda x: str(x), i))
-                               for i in zip(*stratification_list)]
-                train_test = attempting_train_test_split(df, stratify_by, idx,test_size=test_size,random_state=random_state)
-                if train_test:
-                    break
-                else:
-                    bins -= 1
-        
+    
+    
