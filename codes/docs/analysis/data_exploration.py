@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from sklearn.preprocessing import StandardScaler, LabelBinarizer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 import tqdm
 # import pickle
 from statsmodels.multivariate.cancorr import CanCorr
@@ -400,6 +400,8 @@ class MassUnivariate:
 
         """
         new_df = pd.DataFrame()
+        if cont_independentVar_cols is None:
+            cont_independentVar_cols = []
         for threshold in tqdm.tqdm(thresholds):
             try:
                 _, temp_model_summary = cls.mass_univariate(
@@ -407,6 +409,15 @@ class MassUnivariate:
                     cat_independentVar_cols=cat_independentVar_cols,
                     cont_independentVar_cols=cont_independentVar_cols + [threshold],
                     dependentVar_cols=dependentVar_cols,**kwargs)
+                temp_model_summary.reset_index(drop=False, inplace=True)
+                temp_model_summary.rename(
+                    {
+                        'index': 'Connection',
+                        threshold + '_coef': 'PRS_coef',
+                        threshold + '_pval': 'PRS_pval'
+                    },
+                    axis=1,
+                    inplace=True)
             except UFuncTypeError:
                 if isinstance(cont_independentVar_cols, np.ndarray):
                     threshold_array = df[threshold].values.reshape(-1,1)
@@ -417,17 +428,17 @@ class MassUnivariate:
                         cont_independentVar_cols=updated_cont_independentVar_cols,
                         dependentVar_cols=dependentVar_cols,**kwargs)
                     threshold_idx = updated_cont_independentVar_cols.shape[1]-1
-            temp_model_summary.reset_index(drop=False, inplace=True)
-            temp_model_summary.rename(
-                {
-                    'index': 'Connection',
-                    threshold + '_coef': 'PRS_coef',
-                    threshold + '_pval': 'PRS_pval',
-                    f'Cont_{threshold_idx}_coef':'PRS_coef',
-                    f'Cont_{threshold_idx}_pval':'PRS_pval',
-                },
-                axis=1,
-                inplace=True)
+                temp_model_summary.reset_index(drop=False, inplace=True)
+                temp_model_summary.rename(
+                    {
+                        'index': 'Connection',
+                        threshold + '_coef': 'PRS_coef',
+                        threshold + '_pval': 'PRS_pval',
+                        f'Cont_{threshold_idx}_coef':'PRS_coef',
+                        f'Cont_{threshold_idx}_pval':'PRS_pval',
+                    },
+                    axis=1,
+                    inplace=True)
             temp_model_summary['threshold'] = threshold
             new_df = pd.concat([new_df,temp_model_summary],axis=0)
     
@@ -767,6 +778,40 @@ class Stability_tests:
                     bins -= 1
 
         return train_test
+    
+    # @staticmethod
+    # def generate_stratified_fold(df: Union[pd.DataFrame, np.ndarray] = None,
+    #                               *stratify_by_args, 
+    #                               bins : int =4,
+    #                               n_splits=3,
+    #                               random_state: int = 42):
+    #     stratified_split = StratifiedKFold(n_splits=n_splits)
+    #     stratification_list = []
+    #     for idx, stratification in enumerate(stratify_by_args):
+    #         bins = input_bins
+    #         while True:
+    #             if isinstance(stratification, str):
+    #                 strat = df.loc[:, stratification].values
+    #                 if isinstance(strat[0], float):
+    #                     strat = pd.cut(strat, bins=bins, labels=False)
+    #             elif isinstance(stratification, np.ndarray):
+    #                 strat = stratification
+    #                 if isinstance(stratification[0], float):
+    #                     strat = pd.cut(strat, bins=bins, labels=False)
+    #             stratification_list.append(strat)
+    #             stratify_by = [''.join(map(lambda x: str(x), i))
+    #                             for i in zip(*stratification_list)]
+    #             try:
+    #                 train, test = stratified_split.split(df,stratify_by)
+    #                 return train, test
+    #             except ValueError:
+    #                 stratification_list.pop()  # remove the last iteration
+    #                 print('changing bins for %d argument' % idx)
+            
+            
+        
+        
+        
     @staticmethod
     def divide_high_low_risk(y: Optional[np.ndarray], high_perc: float = 0.1, low_perc: float = 0.3) -> List[np.ndarray]:
         """[Divide the dataset into top and bottom x%. Here, we take the assumption that top percent is high risk and bottom percent is low risk.
