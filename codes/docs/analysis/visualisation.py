@@ -390,7 +390,11 @@ class Brainmap:
             cb_title = str. name of the colorbar
             figsize = Default (20,10)
             outline_label_legends: bool. Default True. The outline is updated if the the same legend is found in two regions.
-            outline_regions_to_hide: bool. Default False. Update the outline after using regions_to_hide. 
+            outline_regions_to_hide: bool. Default True. The outline is not updated after using regions_to_hide. 
+            label_legend_bbox_to_anchor:(-2.5, -1,0,0)
+            label_legend_ncol : 6
+            label_legend_loc: 'lower left'
+            label_legend_fontsize: 'medium' or float
         Raises
         ------
         ValueError
@@ -459,7 +463,7 @@ class Brainmap:
                 brain_map.atlas[brain_map.atlas == region] = np.nan
                 if 'outline_regions_to_hide' not in figkwargs:
                     figkwargs['outline_regions_to_hide'] = True
-                if figkwargs['outline_regions_to_hide']:
+                if not figkwargs['outline_regions_to_hide']:
                     original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
                     original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
                     original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
@@ -557,6 +561,14 @@ class Brainmap:
             elif figkwargs['cb_orientation'] == 'horizontal':
                 cb.ax.set_xlabel(figkwargs['cb_title'],rotation=0,fontsize=12,fontweight='bold')
         
+        if 'label_legend_bbox_to_anchor' not in figkwargs:
+            figkwargs['label_legend_bbox_to_anchor'] = (-2.5, -1,0,0)
+        if 'label_legend_ncol' not in figkwargs:
+            figkwargs['label_legend_ncol'] = 6
+        if 'label_legend_loc' not in figkwargs:
+            figkwargs['label_legend_loc'] = 'lower left'
+        if 'label_legend_fontsize' not in figkwargs:
+            figkwargs['label_legend_fontsize'] = 'medium'
         if label_legend is not None:
             #to plot legends?
             if legends:
@@ -568,7 +580,12 @@ class Brainmap:
                 temp_im = map_view_dict[list(map_view_dict)[0]]['im']
                 colors = [temp_im.cmap(temp_im.norm(value)) for value in values]
                 patches = [mpatches.Patch(color=colors[idx], label=label_legend[int(i)]) for idx, i in enumerate(values) if i in label_legend]
-                plt.legend(handles=patches, bbox_to_anchor=(-2.5, -1,0,0), loc='lower left',ncol=6,frameon=False)
+                plt.legend(handles=patches, 
+                           bbox_to_anchor=figkwargs['label_legend_bbox_to_anchor'], 
+                           loc=figkwargs['label_legend_loc'],
+                           ncol=figkwargs['label_legend_ncol'],
+                           fontsize = figkwargs['label_legend_fontsize'],
+                           frameon=False)
 
         for view in map_view:
             sns.despine(bottom=True,left=True,right=True)
