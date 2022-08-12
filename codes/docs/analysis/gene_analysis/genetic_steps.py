@@ -26,7 +26,7 @@ class SNPsFunctionalAnalysis:
         self.updated_bed_file = False
         if type(snps_list) == list:
             self.snps_list = snps_list
-        if bed_file != None:
+        if bed_file is not None:
             if type(bed_file) == str:
                 self.orig_bed_file = bed_reader.open_bed(bed_file)
             else:
@@ -74,7 +74,9 @@ class SNPsFunctionalAnalysis:
             bed_file.properties_dict['allele_2'] = bed_file.allele_2[new_sid]
 
         if fid_list is not None:  # change the bed_file ID info
-            new_fid = [idx for idx, i in enumerate(bed_file.fid) if i.split('-')[0] in fid_list]
+            temp_fid_list = [i.split('-')[0] for i in fid_list] #set anything in the fid as no '-' if there is '-' in the fid.
+            new_fid = [idx for idx, i in enumerate(bed_file.fid) 
+                       if (i.split('-')[0] in temp_fid_list)]
             bed_file.properties_dict['fid'] = bed_file.fid[new_fid]
             bed_file.properties_dict['iid'] = bed_file.iid[new_fid]
             bed_file.properties_dict['father'] = bed_file.father[new_fid]
@@ -92,7 +94,7 @@ class SNPsFunctionalAnalysis:
                          pheno_covar_file: Optional[Union[str,
                                                           pd.DataFrame]] = None,
                          snps_list: Optional[List[str]] = None,
-                         phenotype: str = 'WM_sum',
+                         phenotype: str = None,
                          updated_bed_file:Optional[Union[str, bed_reader.open_bed]]= None) -> pd.DataFrame:
         """
         [Perform linear association for each SNP with the phenotype]
@@ -143,8 +145,9 @@ class SNPsFunctionalAnalysis:
                 raise Exception('Your updated bed file is in wrong format')
         if not hasattr(bed_file, 'genotype'): # this is required if i provide the updated bed file
             bed_file.genotype = bed_file.read()
-        new_fid_list = bed_file.fid.tolist() # to make sure that individuals with different fid values are removed
-        pheno_covar_file = pheno_covar_file[pheno_covar_file['FID'].isin(new_fid_list)]
+        new_fid_list1 = bed_file.fid.tolist() # to make sure that individuals with different fid values are removed
+        new_fid_list2 = [i.split('-')[0] for i in new_fid_list1] #set anything in the fid as no '-' if there is '-' in the fid
+        pheno_covar_file = pheno_covar_file[pheno_covar_file['FID'].isin(new_fid_list1+new_fid_list2)]
         try:
             bed_file_chr = bed_file.properties_dict['chromosome']
         except KeyError:
@@ -172,7 +175,6 @@ class SNPsFunctionalAnalysis:
             dictionary['STAT'] = stat
             dictionary['P'] = p_value
             dictionary['BETA'] = beta
-
         y = pheno_covar_file[[phenotype]].copy()
         x = pheno_covar_file[covariate].copy()
         snp_association = defaultdict(dict)
