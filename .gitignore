@@ -7,3 +7,5 @@ codes/Rscripts/
 preprocessed_dataset/
 *-checkpoint.ipynb
 *.xlsx
+*.txt
+*.svg
