@@ -9,3 +9,4 @@ preprocessed_dataset/
 *.xlsx
 *.txt
 *.svg
+notebook_results/fba_term_preterm/
