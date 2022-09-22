@@ -34,10 +34,12 @@ fixel_mask=fixel_mask/
 fod_in_template_space_NOT_REORIENTED=fod_in_template_space_NOT_REORIENTED.mif
 
 set -e
-
 . support_functions.sh
 
 
+
+
+# Start of main script:
 
 if [ ! -d data ]; then
     echo "dhcp-pipeline-data not yet mounted"
@@ -56,6 +58,10 @@ while read subj; do
   IFS=',' read -ra subj <<< $subj
   ID_list+=(${subj[0]}/${subj[1]})
 done < $subjects_list
+
+
+
+
 
 
 for ID in ${ID_list[@]}; do 
@@ -77,9 +83,7 @@ run 'estimating fiber orientations distributions (FODs)' \
 run 'normalising FODs' \
   mtnormalise IN:$wm_fod OUT:$wm_norm_fod IN:$csf_fod OUT:$csf_norm_fod -mask IN:$mask
 
-#warping mask to joint atlas space
 id_ses=$(echo $ID | sed 's/\//_/')
-
 run 'warping mask to joint atlas space' \
   mrtransform IN:$mask -warp IN:$warps/$ID/$id_ses"_"$warps_in_40wk  OUT:$warped_mask_in_dHCP_40wk -interp linear
 
@@ -87,33 +91,15 @@ run 'warping normalised FODs to joint atlas space' \
   mrtransform IN:$wm_norm_fod -warp IN:$warps/$ID/$id_ses"_"$warps_in_40wk OUT:$warped_wm_fod_in_dHCP_40wk -reorient_fod yes -interp cubic
 
 
-#needs_updating 'estimating fiber orientations distributions (FODs)' $wm_fod $csf_fod -- $dwi_data/$ID/$dwi $warps/$wm_response $warps/$csf_response $mask && {
-#dwi2fod msmt_csd $dwi_data/$ID/$dwi -mask $mask $warps/$wm_response tmp-$wm_fod $warps/$csf_response tmp-$csf_fod
-#mv tmp-$wm_fod $wm_fod
-#mv tmp-$csf_fod $csf_fod
-#}
-
-
-#needs_updating 'normalising FODs' $wm_norm_fod $csf_norm_fod -- $wm_fod $csf_fod $mask && {
-#mtnormalise $wm_fod tmp-$wm_norm_fod $csf_fod tmp-$csf_norm_fod -mask $mask
-#mv tmp-$wm_norm_fod $wm_norm_fod
-#mv tmp-$csf_norm_fod $csf_norm_fod
-#}
-
-#needs_updating 'warping mask to joint atlas space' $warped_mask_in_dHCP_40wk -- $mask $warps/$ID/$id_ses"_"$warps_in_40wk && {
-#mrtransform $mask -warp $warps/$ID/$id_ses"_"$warps_in_40wk  tmp-$warped_mask_in_dHCP_40wk -interp linear
-#mv tmp-$warped_mask_in_dHCP_40wk $warped_mask_in_dHCP_40wk
-#}
-
-#warping normalised FODs to joint atlas
-
-#needs_updating 'warping normalised FODs to joint atlas space' $warped_wm_fod_in_dHCP_40wk -- $wm_norm_fod $mask $warps/$ID/$id_ses"_"$warps_in_40wk && {
-#mrtransform $wm_norm_fod -warp $warps/$ID/$id_ses"_"$warps_in_40wk tmp-$warped_wm_fod_in_dHCP_40wk -reorient_fod yes -interp cubic
-#mv tmp-$warped_wm_fod_in_dHCP_40wk $warped_wm_fod_in_dHCP_40wk
-#}
-
 ) || continue
 done
+
+
+
+
+
+
+
 
 #creating average image of 40 week masks and FODs
 cd $output_folder
@@ -128,17 +114,10 @@ run 'generating an average image of 40 weeks FODs' \
   mrmath $(IN */*/$warped_wm_fod_in_dHCP_40wk) mean - \| mrgrid - regrid -voxel 1.3 -interp sinc OUT:$warped_wm_fod_average
 
 
-#needs_updating 'generating an average image of 40 weeks masks' $warped_mask_average -- $(find . -name $warped_mask_in_dHCP_40wk) && {
-#mrmath $(find . -name $warped_mask_in_dHCP_40wk) min tmp-$warped_mask_average -datatype bit
-#mrgrid tmp-$warped_mask_average regrid -voxel 1.3 -interp nearest $warped_mask_average
-#rm -f tmp*
-#}
 
-#needs_updating 'generating an average image of 40 weeks FODs' $warped_wm_fod_average -- $(find . -name $warped_wm_fod_in_dHCP_40wk) && {
-#mrmath $(find . -name $warped_wm_fod_in_dHCP_40wk) mean tmp-$warped_wm_fod_average
-#mrgrid tmp-$warped_wm_fod_average regrid -voxel 1.3 -interp sinc $warped_wm_fod_average
-#rm -f tmp*
-#}
+
+
+
 
 
 #Registering FODs to average templates
@@ -155,14 +134,14 @@ cd $output_folder/$ID
 run 'registering normalised FODs to average images' \
   mrregister IN:$wm_norm_fod -mask1 IN:$mask IN:$output_folder/$warped_wm_fod_average -nl_warp OUT:$native2average_warp OUT:$average2native_warp
 
-#needs_updating 'registering normalised FODs to average images' $native2average_warp $average2native_warp -- $output_folder/$warped_wm_fod_average $wm_norm_fod $mask && {
-#mrregister $wm_norm_fod -mask1 $mask $output_folder/$warped_wm_fod_average -nl_warp tmp-$native2average_warp tmp-$average2native_warp
-#mv tmp-$native2average_warp $native2average_warp
-#mv tmp-$average2native_warp $average2native_warp
-#}
-
 )||continue
 done
+
+
+
+
+
+
 
 #Fixel analysis
 cd $output_folder
@@ -173,11 +152,12 @@ echo '###################################'
 run 'calculating fixel from average mask' \
   fod2fixel -mask IN:$warped_mask_average -fmls_peak_value 0.06 IN:$warped_wm_fod_average OUT:$fixel_mask
 
-# needs_updating 'calculating fixel from average mask' $fixel_mask -- $warped_mask_average $warped_wm_fod_average &&{
-# fod2fixel -mask $warped_mask_average -fmls_peak_value 0.06 $warped_wm_fod_average tmp-$fixel_mask
-# mv tmp-$fixel_mask $fixel_mask
-# }
-# 
+
+
+
+
+
+
 cd $src
 
 for ID in ${ID_list[@]}; do
