@@ -8,7 +8,7 @@
 #   needs_updating output_file [output_file2 ...] -- input_file [input_file2 ...]
 #
 # Returns 0 if need to recompute, 1 otherwise
-needs_updating () {
+function needs_updating () {
   output=$1
   while [ $# -gt 0 ]; do
     if [ $1 == "--" ]; then break; fi
