@@ -10,3 +10,9 @@ preprocessed_dataset/
 *.txt
 *.svg
 notebook_results/fba_term_preterm/
+codes/FBA/.old_process.sh.swp
+codes/FBA/.process.sh.swp
+*.mif
+codes/FBA/data
+codes/FBA/dHCP_participant_info.csv
+codes/FBA/dhcp_neo_dMRI_derived
