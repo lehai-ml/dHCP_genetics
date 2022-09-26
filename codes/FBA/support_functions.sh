@@ -10,23 +10,31 @@
 # Returns 0 if need to recompute, 1 otherwise
 function needs_updating () {
   output=$1
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  NC='\033[0m'
   while [ $# -gt 0 ]; do
     if [ $1 == "--" ]; then break; fi
-    if [ ! -e $1 ]; then
-      echo ' outputs missing - recomputing'
+    if [ ! -e $1 -a ! -e ../$1 -a ! -e ../../$1 -a ! -e ../../../$1 -a ! -e $output_dir/$1 ]; then
+      # the file may be found in another subfolder (e.g., this happens when using fod2fixel -afd or fixelreorientation)
+      echo -e "${RED} outputs missing - recomputing${NC}"
       return 0;
+    else
+      if [ -d $1 ]; then # if the output is a directory that exist
+         output_dir=$1
+      fi
     fi
     shift
   done
   shift
   while [ $# -gt 0 ]; do
     if [ $1 -nt $output ]; then
-      echo " inputs have been updated - recomputing"
+      echo -e "${RED} inputs have been updated - recomputing${NC}"
       return 0
     fi
     shift
   done
-  echo ' already up to date - skipping'
+  echo -e "${GREEN} already up to date - skipping${NC}"
   return 1
 }
 
@@ -41,7 +49,9 @@ function needs_updating () {
 # where args can be prefixed with IN: (e.g. IN:image.nii) to denote an 
 # input file, or prefixed with OUT: to denote an output
 function run {
-  echo -n "> $1..."
+  GREEN='\033[0;32m'
+  NC='\033[0;0m'
+  echo -e -n "> ${GREEN}$1...${NC}"
   cmd=($2)
   shift 2
 
@@ -56,7 +66,16 @@ function run {
     elif [[ $arg == OUT:* ]]; then
       arg=${arg#OUT:}
       outputs+=($arg)
-      cmd+=(tmp-$arg)
+      if [ -d $arg ]; then
+	cmd+=($arg)
+	continue
+      fi
+      if [[ $arg == */* ]];then
+	arg=$(echo ${arg%\/*}"/tmp-"${arg##*\/})
+	cmd+=($arg)
+      else
+	cmd+=(tmp-$arg)
+      fi	      
     else
       cmd+=($arg)
     fi
@@ -64,17 +83,27 @@ function run {
 
   #echo inputs=${inputs[@]}
   #echo outputs=${outputs[@]}
-
+  #echo ${cmd[@]}
   needs_updating ${outputs[@]} -- ${inputs[@]} || return 0
 
   eval ${cmd[@]}
   retval=$?
   if [ $retval -eq 0 ]; then
     for out in ${outputs[@]}; do
-      mv tmp-$out $out
+      if [ -d $out ]; then continue; fi; # if the folder already existed, continue
+      if [[ $out == */* ]]; then # if it is a first-time folder, then append tmp- to the file.
+        mv $(echo ${out%\/*}"/tmp-"${out##*\/}) $out
+      else
+	mv tmp-$out $out  2>/dev/null #sometimes the file is output to a folder, not the current one 
+        if [ $? -eq 1 ]; then
+          output_dir=$(find ../../ -name "tmp-${out}") # sometimes the files is output to the folder in parents directory
+          mv $output_dir ${output_dir%/*}/$out 
+        fi
+      fi
     done
   fi
-  rm -f tmp-*
+
+  rm -rf tmp-*
 
   return $retval
 }
