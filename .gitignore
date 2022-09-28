@@ -17,3 +17,4 @@ codes/FBA/data
 codes/FBA/dHCP_participant_info.csv
 codes/FBA/dhcp_neo_dMRI_derived
 *.swp
+*.tck
