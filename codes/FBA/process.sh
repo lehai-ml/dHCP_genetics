@@ -169,5 +169,11 @@ run 'computing combined measure FDC' \
 done
 
 # perform whole brain tracktography on the FOD template
+
+. 5tt.sh
+
+cd $src
+
+. tractography.sh
 # reduce biases in tractogram densities
 # smooth the data
