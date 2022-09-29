@@ -168,6 +168,10 @@ run 'computing combined measure FDC' \
 )||continue
 done
 
+#copying direction and index.mif to log_fc and fdc files 
+cp $all_subj_fd/{direction.mif,index.mif} $all_subj_log_fc
+cp $all_subj_fd/{direction.mif,index.mif} $all_subj_fdc
+
 # perform whole brain tracktography on the FOD template
 
 . 5tt.sh
