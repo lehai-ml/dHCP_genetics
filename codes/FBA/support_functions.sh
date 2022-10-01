@@ -18,7 +18,7 @@ function needs_updating () {
     if [ ! -e $1 -a ! -e ../$1 -a ! -e ../../$1 -a ! -e ../../../$1 -a ! -e $output_dir/$1 ]; then
       # the file may be found in another subfolder (e.g., this happens when using fod2fixel -afd or fixelreorientation)
       echo -e "${RED} outputs missing - recomputing${NC}"
-      return 0;
+      return 1;
     else
       if [ -d $1 ]; then # if the output is a directory that exist
          output_dir=$1
@@ -30,12 +30,12 @@ function needs_updating () {
   while [ $# -gt 0 ]; do
     if [ $1 -nt $output ]; then
       echo -e "${RED} inputs have been updated - recomputing${NC}"
-      return 0
+      return 1
     fi
     shift
   done
   echo -e "${GREEN} already up to date - skipping${NC}"
-  return 1
+  return 0
 }
 
 
@@ -84,8 +84,8 @@ function run {
   #echo inputs=${inputs[@]}
   #echo outputs=${outputs[@]}
   #echo ${cmd[@]}
-  needs_updating ${outputs[@]} -- ${inputs[@]} || return 0
-
+  (needs_updating ${outputs[@]} -- ${inputs[@]}) || 
+  (
   eval ${cmd[@]}
   retval=$?
   if [ $retval -eq 0 ]; then
@@ -106,8 +106,26 @@ function run {
   rm -rf tmp-*
 
   return $retval
+  )
 }
 
+function update_folder_if_needed() {
+	RED='\033[0;31m'
+	GREEN='\033[0;32m'
+        NC='\033[0m'
+
+	(eval ${@}) ||
+	(for arg in "$@"; do
+	    if [[ $arg == OUT:* ]]; then
+		arg=${arg#OUT:}
+		if [ -d $arg ]; then
+		   echo -e "${RED} Removing "$arg" folder${NC}"
+		   rm -rf $arg
+	        fi
+	    fi
+	done
+	eval ${@})
+}
 
 # Convenience function to prefix all arguments with IN:
 # This is useful when using pattern matching to capture all inputs
