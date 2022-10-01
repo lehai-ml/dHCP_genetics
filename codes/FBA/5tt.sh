@@ -23,7 +23,7 @@ gm=gm.mif
 dgm=dgm.mif
 csf=csf.mif
 image_5TT=5TT.mif
-
+cd $src
 mkdir -p ${output_folder}/${output_5TT}
 
 cd ${output_folder}/${output_5TT}
