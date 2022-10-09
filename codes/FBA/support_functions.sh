@@ -1,4 +1,7 @@
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
 
 # Convenience function to check whether outputs already exist, and 
 # whether inputs are newer than outputs, in which case the processing 
@@ -49,8 +52,6 @@ function needs_updating () {
 # where args can be prefixed with IN: (e.g. IN:image.nii) to denote an 
 # input file, or prefixed with OUT: to denote an output
 function run {
-  GREEN='\033[0;32m'
-  NC='\033[0;0m'
   echo -e -n "> ${GREEN}$1...${NC}"
   cmd=($2)
   shift 2
@@ -110,11 +111,8 @@ function run {
 }
 
 function update_folder_if_needed() {
-	RED='\033[0;31m'
-	GREEN='\033[0;32m'
-        NC='\033[0m'
 
-	(eval ${@}) ||
+	(eval "${@}") ||
 	(for arg in "$@"; do
 	    if [[ $arg == OUT:* ]]; then
 		arg=${arg#OUT:}
@@ -124,7 +122,7 @@ function update_folder_if_needed() {
 	        fi
 	    fi
 	done
-	eval ${@})
+	eval "${@}" )
 }
 
 # Convenience function to prefix all arguments with IN:
@@ -139,5 +137,28 @@ function IN {
     echo IN:$x
   done
 }
-
-
+#check if content in a folder match with content in a file
+function sanity_check {
+  echo -e "${GREEN}> checking if IDs match ...${NC}"
+  pattern_to_match=$1
+  dest1=$2
+  shift 2
+  if [ -d $dest1 ]; then
+    file1=$(find ${dest1} -maxdepth 1 -name "${pattern_to_match}*" -exec basename \{} ${pattern_to_match} \;)
+  elif [ -f $dest1 ]; then
+    file1=$(cat $dest1)
+  fi
+  for dest2 in "$@"; do
+   if [ -d $dest2 ]; then
+    file2=$(find ${dest2} -maxdepth 1 -name "${pattern_to_match}*" -exec basename \{} ${pattern_to_match} \;)
+  elif [ -f $dest2 ]; then
+    file2=$(cat $dest2)
+  fi
+  difference=$(echo ${file1[@]} ${file2[@]} | tr ' ' '\n' | sort | uniq -u)
+  if [[ ${#difference} -gt 0 ]]; then
+    echo -e "${RED} ${dest1} is different from ${dest2} ${NC}"
+    echo -e "${RED} removing ${dest2} ${NC}"
+    rm -rf ${dest2}
+  fi
+  done
+}
