@@ -6,7 +6,7 @@ import numpy as np
 from typing import List
 import glob
 import sys
-
+from collections import defaultdict
 
 def main():
 
@@ -23,7 +23,8 @@ def main():
 
     folder_group.add_argument('--folder',help='Folder name',type=str)
     folder_group.add_argument('--pattern',help='pattern to select',type=str,nargs='+',default='*')
-
+    id_generator.add_argument('--duplicates',help='keep duplicated IDs',action='store_true')
+    id_generator.add_argument('--no-duplicates',dest='duplicates',action='store_false')
     id_generator.add_argument('--out',help='Output txt',type=str)
 
     id_select = subparsers.add_parser('select', help='apply criteria to a generated ID list')
@@ -64,10 +65,9 @@ class Generateids:
                      apcolumns:List[int]=None,
                      prefix:List[str]=None,
                      previous_IDs:List[str] = None,
+                     duplicated:bool=False,
                      out:str=None):
         """
-        
-
         Parameters
         ----------
         filename : str, optional
@@ -86,6 +86,8 @@ class Generateids:
             prefix to add to each of the id columns, e.g. sub- and ses-. The default is None.
         previous_IDs : List[str], optional
             Use with pipe in shell, if previous output is passed then compare current list with that list. The default is None.
+        duplicated: bool, optional
+            If False, remove duplicated IDs in the first column, else keep. The default is False
         out : str, optional
             output file. The default is None.
 
@@ -99,36 +101,44 @@ class Generateids:
             file = pd.read_csv(filename,sep=',',header=None)
             ID_pd=pd.DataFrame()
 
-            if columns is not None:
+            if isinstance(columns,list):
                 if prefix is None:
                     prefix = ['' for i in range(len(columns))]
                 else:
                     if len(prefix) == 1:
                         prefix = [prefix for i in range(len(columns))]
+                if not duplicated:
+                    file = file.drop_duplicates(subset=file.columns[0],keep='last').reset_index(drop=True)
                 for idx,(col,pref) in enumerate(zip(columns,prefix)):
                     ID_pd[idx] = pref + file.iloc[:,col].astype('str')
-
+            
             ID_pd['ID'] = ID_pd[ID_pd.columns].agg('/'.join,axis=1)
             
-            if apcolumns is not None:
+            if isinstance(apcolumns,list):
                 for col in apcolumns:
                     ID_pd[file.columns[col]] = file.loc[:,file.columns[col]].astype('str')
                 ID_pd = ID_pd[['ID']+file.columns[apcolumns].tolist()].copy()
             else:
                 ID_pd = ID_pd[['ID']].copy()
             ID_list = [','.join(ID_pd.iloc[row,:].tolist()) for row in range(len(ID_pd))]
-
+            
         if isinstance(foldername,str):
             if isinstance(pattern,list):
-                pattern ='/'.join(pattern) # a/b/c
-            pattern_to_search ='/'.join([foldername,pattern])
+                new_pattern ='/'.join(pattern) # a/b/c
+            pattern_to_search ='/'.join([foldername,new_pattern])
             pattern_list = glob.glob(pattern_to_search)
             ID_list = [i.replace(foldername+'/','') for i in pattern_list]
-
+            if not duplicated:
+                folder=defaultdict(list)
+                for i,j in map(lambda x: x.split('/'),ID_list):
+                    if len(folder[i])>1:
+                        folder[i]=[]
+                    folder[i].append(j)
+                ID_list = ['/'.join([i,j[0]]) for i,j in folder.items()]
         if isinstance(previous_IDs,list):
-            common_list = Generateids.get_common_IDs(ID_list,previous_IDs) 
+            common_list = Generateids.get_common_IDs(ID_list,previous_IDs)
             ID_list = [','.join(common_list.iloc[row,:].tolist()) for row in range(len(common_list))]
-
+            
         if out is not None:
             with open(out,'a') as f:
                 for i in ID_list:
@@ -370,6 +380,7 @@ if __name__ == '__main__':
                              prefix=args.prefix,
                              apcolumns=args.apcolumns,
                              previous_IDs=previous_IDs,
+                             duplicated=args.duplicates,
                              out=args.out)
     elif sys.argv[1] == 'matrix':
         Generateids.get_design_contrast_matrix(filename=args.file,
