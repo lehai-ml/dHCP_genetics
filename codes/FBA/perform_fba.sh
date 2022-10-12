@@ -18,6 +18,13 @@ sanity_check sub $fba_output/$id_file $src/$output_folder/$all_subj_fd $src/$out
 #
 ##statistical analysis FD, log(FC) and FDC fixelfestats
 ##
-#update_folder_if_needed run "'calculating fixelcfestats FD'" \
-#  fixelcfestats IN:$fba_output/$all_subj_fd_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_fd
-#
+update_folder_if_needed run "'calculating fixelcfestats FD'" \
+  fixelcfestats IN:$fba_output/$all_subj_fd_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_fd
+
+update_folder_if_needed run "'calculating fixelcfestats log FC'" \
+  fixelcfestats IN:$fba_output/$all_subj_log_fc_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_log_fc
+
+update_folder_if_needed run "'calculating fixelcfestats FDC'" \
+  fixelcfestats IN:$fba_output/$all_subj_fdc_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_fdc
+
+
