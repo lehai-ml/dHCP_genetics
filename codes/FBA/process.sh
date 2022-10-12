@@ -82,7 +82,8 @@ design_matrix=design_matrix.txt
 contrast_matrix=contrast_matrix.txt
 
 stats_fd=stats_fd
-
+stats_log_fc=stats_log_fc
+stats_fdc=stats_fdc
 set -e
 
 . support_functions.sh
@@ -110,12 +111,12 @@ done < $subjects_list
 cd $src
 #. calculate_fods.sh
 cd $src
-#. compute_average_masks_and_fods.sh
+. compute_average_masks_and_fods.sh
 cd $src
-#. calculate_fixel_metrics.sh
+. calculate_fixel_metrics.sh
 cd $src
 #. 5tt.sh
 cd $src
 #. tractography.sh
 cd $src
-. perform_fba.sh
+#. perform_fba.sh
