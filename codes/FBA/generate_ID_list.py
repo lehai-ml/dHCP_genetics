@@ -17,7 +17,7 @@ def main():
     folder_group = id_generator.add_argument_group('folder')
     file_group.add_argument('--file',help='csv file name',type=str)
     file_group.add_argument('--sep',help='csv delimiter',type=str,nargs='?',default=',')
-    file_group.add_argument('--columns',help='csv columns index to select',type=int,nargs='+')
+    file_group.add_argument('--idcolumns',help='csv columns index to select',type=int,nargs='+')
     file_group.add_argument('--prefix',help='add prefix to columns name',type=str,nargs='+')
     file_group.add_argument('--apcolumns',help='append other columns by index',type=int,nargs='+')
 
@@ -32,6 +32,7 @@ def main():
     id_select.add_argument('--sep',help='csv delimiter',type=str,nargs='?',default=',')
     id_select.add_argument('--criteria', help='columns followed by criteria to select from', type=str,nargs='+')
     id_select.add_argument('--group',help='denote the selected id group',type=str)
+    id_select.add_argument('--remove',help='remove entries by ID',type=str,nargs='+')
     id_select.add_argument('--out',help='Output txt',type=str)
     
     id_matrix = subparsers.add_parser('matrix', help='generate design and contrast matrix for fba')
@@ -61,7 +62,7 @@ class Generateids:
                      foldername:str=None,
                      sep:str=',',
                      pattern:List[str]=None,
-                     columns:List[int]=None,
+                     idcolumns:List[int]=None,
                      apcolumns:List[int]=None,
                      prefix:List[str]=None,
                      previous_IDs:List[str] = None,
@@ -98,21 +99,25 @@ class Generateids:
         """
 
         if isinstance(filename,str):
-            file = pd.read_csv(filename,sep=',',header=None)
+            file = pd.read_csv(filename,sep=sep,header=None)
             ID_pd=pd.DataFrame()
-
-            if isinstance(columns,list):
+            
+            if isinstance(idcolumns,list):
                 if prefix is None:
-                    prefix = ['' for i in range(len(columns))]
+                    prefix = ['' for i in range(len(idcolumns))]
                 else:
                     if len(prefix) == 1:
-                        prefix = [prefix for i in range(len(columns))]
+                        prefix = [prefix for i in range(len(idcolumns))]
                 if not duplicated:
                     file = file.drop_duplicates(subset=file.columns[0],keep='last').reset_index(drop=True)
-                for idx,(col,pref) in enumerate(zip(columns,prefix)):
+                for idx,(col,pref) in enumerate(zip(idcolumns,prefix)):
                     ID_pd[idx] = pref + file.iloc[:,col].astype('str')
-            
-            ID_pd['ID'] = ID_pd[ID_pd.columns].agg('/'.join,axis=1)
+                ID_pd['ID'] = ID_pd[ID_pd.columns].agg('/'.join,axis=1)
+
+            else:
+                #if no columns provided, default the first column is the ID
+                ID_pd = file.copy()
+                ID_pd.columns = ['ID'] + ID_pd.columns.tolist()[1:]
             
             if isinstance(apcolumns,list):
                 for col in apcolumns:
@@ -138,7 +143,7 @@ class Generateids:
         if isinstance(previous_IDs,list):
             common_list = Generateids.get_common_IDs(ID_list,previous_IDs)
             ID_list = [','.join(common_list.iloc[row,:].tolist()) for row in range(len(common_list))]
-            
+        
         if out is not None:
             with open(out,'a') as f:
                 for i in ID_list:
@@ -186,10 +191,10 @@ class Generateids:
                    criteria:List[str]=None,
                    group:str=None,
                    previous_IDs:str=None,
+                   remove_IDs:List[str]=None,
                    out:str=None
                    ):
         """
-        
 
         Parameters
         ----------
@@ -205,6 +210,8 @@ class Generateids:
             assign the rows that pass the criteria to a name, e.g. term. The default is None.
         previous_IDs : str, optional
             if previous ID is passed then append the current one with the previous one. The default is None.
+        remove_IDs: str, optional
+            remove subset of individuals by their IDs. The default is None.
         out : str, optional
             output destination. The default is None.
 
@@ -237,7 +244,11 @@ class Generateids:
         ID_list = [','.join(updated_ID_pd.iloc[row,:].tolist()) for row in range(len(updated_ID_pd))]
         if isinstance(previous_IDs,list):
             ID_list+=previous_IDs
-
+        
+        if isinstance(remove_IDs,list):
+            for remove_subj in remove_IDs:
+                ID_list = [ID_line for ID_line in ID_list if remove_subj not in ID_line]
+            
         if out is not None:
             with open(out,'a') as f:
                 for i in ID_list:
@@ -364,24 +375,25 @@ if __name__ == '__main__':
         previous_IDs = [i.replace('\n','') for i in tmp_previous_IDs]
     else:
         previous_IDs = None
-    if sys.argv[1] == 'select':
-        Generateids.select_IDs(filename=args.file,
-                               sep=args.sep,
-                               criteria=args.criteria,
-                               group=args.group,
-                               previous_IDs=previous_IDs,
-                               out=args.out)
-    elif sys.argv[1] == 'generate':
+    if sys.argv[1] == 'generate':
         Generateids.generate_IDs(filename=args.file,
                              foldername=args.folder,
                              sep=args.sep,
                              pattern=args.pattern,
-                             columns=args.columns,
+                             idcolumns=args.idcolumns,
                              prefix=args.prefix,
                              apcolumns=args.apcolumns,
                              previous_IDs=previous_IDs,
                              duplicated=args.duplicates,
                              out=args.out)
+    elif sys.argv[1] == 'select':
+        Generateids.select_IDs(filename=args.file,
+                               sep=args.sep,
+                               criteria=args.criteria,
+                               group=args.group,
+                               previous_IDs=previous_IDs,
+                               remove_IDs=args.remove,
+                               out=args.out)
     elif sys.argv[1] == 'matrix':
         Generateids.get_design_contrast_matrix(filename=args.file,
                                                categoricalVariable=args.categorical,
