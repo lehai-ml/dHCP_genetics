@@ -16,15 +16,18 @@ def main():
     file_group = id_generator.add_argument_group('file')
     folder_group = id_generator.add_argument_group('folder')
     file_group.add_argument('--file',help='csv file name',type=str)
-    file_group.add_argument('--sep',help='csv delimiter',type=str,nargs='?',default=',')
-    file_group.add_argument('--idcolumns',help='csv columns index to select',type=int,nargs='+')
+    file_group.add_argument('--header',help='header location',type=int)
+    file_group.add_argument('--sep',help='csv delimiter',type=str,default=',')
+    file_group.add_argument('--delim_whitespace',help='csv delim_whitespace',action='store_true')
+    file_group.add_argument('--idcolumns',help='csv columns index to select',nargs='+')
     file_group.add_argument('--prefix',help='add prefix to columns name',type=str,nargs='+')
-    file_group.add_argument('--apcolumns',help='append other columns by index',type=int,nargs='+')
+    file_group.add_argument('--apcolumns',help='append other columns by index',nargs='+')
 
     folder_group.add_argument('--folder',help='Folder name',type=str)
     folder_group.add_argument('--pattern',help='pattern to select',type=str,nargs='+',default='*')
     id_generator.add_argument('--duplicates',help='keep duplicated IDs',action='store_true')
     id_generator.add_argument('--no-duplicates',dest='duplicates',action='store_false')
+    id_generator.add_argument('--get-differences',dest='differences',help='get differences between current and previous list',action='store_true')
     id_generator.add_argument('--out',help='Output txt',type=str)
 
     id_select = subparsers.add_parser('select', help='apply criteria to a generated ID list')
@@ -60,13 +63,16 @@ class Generateids:
     @staticmethod
     def generate_IDs(filename:str=None,
                      foldername:str=None,
-                     sep:str=',',
+                     sep:str=None,
+                     delim_whitespace:bool=False,
+                     header:int=None,
                      pattern:List[str]=None,
                      idcolumns:List[int]=None,
                      apcolumns:List[int]=None,
                      prefix:List[str]=None,
                      previous_IDs:List[str] = None,
                      duplicated:bool=False,
+                     get_differences:bool=False,
                      out:str=None):
         """
         Parameters
@@ -97,9 +103,11 @@ class Generateids:
         None.
 
         """
-
         if isinstance(filename,str):
-            file = pd.read_csv(filename,sep=sep,header=None)
+            if delim_whitespace:
+                file = pd.read_csv(filename,header=header,delim_whitespace=True)
+            elif isinstance(sep,str):
+                file = pd.read_csv(filename,header=header,sep=sep)
             ID_pd=pd.DataFrame()
             
             if isinstance(idcolumns,list):
@@ -110,24 +118,41 @@ class Generateids:
                         prefix = [prefix for i in range(len(idcolumns))]
                 if not duplicated:
                     file = file.drop_duplicates(subset=file.columns[0],keep='last').reset_index(drop=True)
-                for idx,(col,pref) in enumerate(zip(idcolumns,prefix)):
-                    ID_pd[idx] = pref + file.iloc[:,col].astype('str')
+                if idcolumns[0].isdigit():
+                    idcolumns = [int(i) for i in idcolumns]
+                    for idx,(col,pref) in enumerate(zip(idcolumns,prefix)):
+                        if isinstance(file.iloc[0,col],float):
+                            file.iloc[:,col] = file.iloc[:,col].astype('int')
+                        ID_pd[idx] = pref + file.iloc[:,col].astype('str')
+                else:
+                    for idx,(col,pref) in enumerate(zip(idcolumns,prefix)):
+                        if isinstance(file.loc[0,col],float):
+                            file.loc[:,col] = file.loc[:,col].astype('int')
+                        ID_pd[idx] = pref + file.loc[:,col].astype('str')
                 ID_pd['ID'] = ID_pd[ID_pd.columns].agg('/'.join,axis=1)
+                ID_pd = ID_pd.drop(columns=[i for i in ID_pd.columns if i != 'ID'])
 
             else:
+                idcolumns=[]
                 #if no columns provided, default the first column is the ID
                 ID_pd = file.copy()
                 ID_pd.columns = ['ID'] + ID_pd.columns.tolist()[1:]
-            
+
             if isinstance(apcolumns,list):
-                for col in apcolumns:
-                    ID_pd[file.columns[col]] = file.loc[:,file.columns[col]].astype('str')
-                ID_pd = ID_pd[['ID']+file.columns[apcolumns].tolist()].copy()
+                if apcolumns[0].isdigit():
+                    apcolumns = [int(i) for i in apcolumns]
+                    for col in apcolumns:
+                        ID_pd = pd.concat([ID_pd,file.loc[:,file.columns[col]]],axis=1)
+                else:
+                    ID_pd = pd.concat([ID_pd,file.loc[:,apcolumns]],axis=1)
             else:
                 ID_pd = ID_pd[['ID']].copy()
+            ID_pd = ID_pd.astype(str)
             ID_list = [','.join(ID_pd.iloc[row,:].tolist()) for row in range(len(ID_pd))]
-            
+
         if isinstance(foldername,str):
+            if foldername[-1] == '/':
+                foldername = foldername[:-1]
             if isinstance(pattern,list):
                 new_pattern ='/'.join(pattern) # a/b/c
             pattern_to_search ='/'.join([foldername,new_pattern])
@@ -141,8 +166,8 @@ class Generateids:
                     folder[i].append(j)
                 ID_list = ['/'.join([i,j[0]]) for i,j in folder.items()]
         if isinstance(previous_IDs,list):
-            common_list = Generateids.get_common_IDs(ID_list,previous_IDs)
-            ID_list = [','.join(common_list.iloc[row,:].tolist()) for row in range(len(common_list))]
+            new_list = Generateids.get_common_IDs(ID_list,previous_IDs,get_differences=get_differences)
+            ID_list = [','.join(new_list.iloc[row,:].tolist()) for row in range(len(new_list))]
         
         if out is not None:
             with open(out,'a') as f:
@@ -154,7 +179,7 @@ class Generateids:
                 print(i)
 
     @staticmethod
-    def get_common_IDs(list1:List[str],list2:List[str],list1_delimited:str=',',list2_delimited:str=','):
+    def get_common_IDs(list1:List[str],list2:List[str],list1_delimited:str=',',list2_delimited:str=',',get_differences=False):
         """
         Use when previous IDs is passed.
 
@@ -168,7 +193,9 @@ class Generateids:
             delimiter of list1. The default is ','.
         list2_delimited : str, optional
             delimiter of list2. The default is ','.
-
+        get_difference: bool
+            select only values unique to list1, but not list 2. The default is False
+            
         Returns
         -------
         common_list : pd.DataFrame
@@ -178,12 +205,15 @@ class Generateids:
         # you can only get the common lines in the first columns
         list1_IDs = pd.DataFrame([ID.split(list1_delimited) for ID in list1])
         list2_IDs = pd.DataFrame([ID.split(list2_delimited) for ID in list2])
-
+        
         list1_IDs.columns=['IDs']+list1_IDs.columns.tolist()[1:]
         list2_IDs.columns=['IDs']+list2_IDs.columns.tolist()[1:]
+        if get_differences:
+            result_list = list1_IDs[~list1_IDs.IDs.isin(list2_IDs.IDs)].reset_index(drop=True)
+        else:
+            result_list= pd.merge(list1_IDs,list2_IDs,on ='IDs',how = 'inner')
         
-        common_list = pd.merge(list1_IDs,list2_IDs,on ='IDs',how = 'inner')
-        return common_list
+        return result_list
 
     @staticmethod
     def select_IDs(filename:str=None,
@@ -378,14 +408,18 @@ if __name__ == '__main__':
     if sys.argv[1] == 'generate':
         Generateids.generate_IDs(filename=args.file,
                              foldername=args.folder,
+                             header=args.header,
                              sep=args.sep,
+                             delim_whitespace=args.delim_whitespace,
                              pattern=args.pattern,
                              idcolumns=args.idcolumns,
                              prefix=args.prefix,
                              apcolumns=args.apcolumns,
                              previous_IDs=previous_IDs,
                              duplicated=args.duplicates,
+                             get_differences=args.differences,
                              out=args.out)
+
     elif sys.argv[1] == 'select':
         Generateids.select_IDs(filename=args.file,
                                sep=args.sep,
