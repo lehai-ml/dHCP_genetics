@@ -19,7 +19,7 @@ participants_info="dHCP_participant_info.csv"
 usable_subjects="usable_subj.txt"
 all_available_IDs=all_available_IDs.txt
 usable_subj=usable_subj.txt
-
+euro_SCZ_PRS_term="euro_SCZ_PRS_term.csv"
 # Relevant files for calculate_fods.sh
 mask=mask.mif
 wm_fod=wm_fod.mif
@@ -84,6 +84,14 @@ contrast_matrix=contrast_matrix.txt
 stats_fd=stats_fd
 stats_log_fc=stats_log_fc
 stats_fdc=stats_fdc
+
+#Relevant files for calculate_dti.sh
+diffusion_tensor=diffusion_tensor.mif
+dt_fa=dt_fa.mif
+dt_adc=dt_adc.mif
+dt_rd=dt_rd.mif
+dt_ad=dt_ad.mif
+
 set -e
 
 . support_functions.sh
@@ -111,12 +119,14 @@ done < $subjects_list
 cd $src
 #. calculate_fods.sh
 cd $src
-. compute_average_masks_and_fods.sh
+#. compute_average_masks_and_fods.sh
 cd $src
-. calculate_fixel_metrics.sh
+#. calculate_fixel_metrics.sh
 cd $src
 #. 5tt.sh
 cd $src
 #. tractography.sh
 cd $src
-#. perform_fba.sh
+. perform_fba.sh
+cd $src
+#. calculate_dti.sh
