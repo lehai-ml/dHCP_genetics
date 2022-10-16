@@ -11,40 +11,41 @@ from collections import defaultdict
 def main():
 
     parser = argparse.ArgumentParser(description='Get a list of subject IDs')
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser_file= parent_parser.add_argument_group('file')
+    parent_parser_file.add_argument('--file',help='csv file name',type=str)
+    parent_parser_file.add_argument('--header',help='header location',type=int)
+    parent_parser_file.add_argument('--sep',help='csv delimiter',type=str,default=',')
+    parent_parser_file.add_argument('--delim_whitespace',help='csv delim_whitespace',action='store_true')
+    
+    parent_parser_folder = parent_parser.add_argument_group('folder')
+    parent_parser_folder.add_argument('--folder',help='Folder name',type=str)
+    
     subparsers = parser.add_subparsers()
-    id_generator = subparsers.add_parser('generate', help='generate IDs from folders or csv file')
-    file_group = id_generator.add_argument_group('file')
-    folder_group = id_generator.add_argument_group('folder')
-    file_group.add_argument('--file',help='csv file name',type=str)
-    file_group.add_argument('--header',help='header location',type=int)
-    file_group.add_argument('--sep',help='csv delimiter',type=str,default=',')
-    file_group.add_argument('--delim_whitespace',help='csv delim_whitespace',action='store_true')
-    file_group.add_argument('--idcolumns',help='csv columns index to select',nargs='+')
-    file_group.add_argument('--prefix',help='add prefix to columns name',type=str,nargs='+')
-    file_group.add_argument('--apcolumns',help='append other columns by index',nargs='+')
+    id_generator = subparsers.add_parser('generate', parents=[parent_parser], help='generate IDs from folders or csv file')
+    
+    id_generator.add_argument('--idcolumns',help='csv columns index to select',nargs='+')
+    id_generator.add_argument('--prefix',help='add prefix to columns name',type=str,nargs='+')
+    id_generator.add_argument('--apcolumns',help='append other columns by index',nargs='+')
 
-    folder_group.add_argument('--folder',help='Folder name',type=str)
-    folder_group.add_argument('--pattern',help='pattern to select',type=str,nargs='+',default='*')
+    id_generator.add_argument('--pattern',help='pattern to select',type=str,nargs='+',default='*')
     id_generator.add_argument('--duplicates',help='keep duplicated IDs',action='store_true')
     id_generator.add_argument('--no-duplicates',dest='duplicates',action='store_false')
     id_generator.add_argument('--get-differences',dest='differences',help='get differences between current and previous list',action='store_true')
     id_generator.add_argument('--out',help='Output txt',type=str)
-
-    id_select = subparsers.add_parser('select', help='apply criteria to a generated ID list')
-    id_select.add_argument('--file',help='csv file name', type=str)
-    id_select.add_argument('--sep',help='csv delimiter',type=str,nargs='?',default=',')
+    
+    id_select = subparsers.add_parser('select', parents=[parent_parser],help='apply criteria to a generated ID list')
     id_select.add_argument('--criteria', help='columns followed by criteria to select from', type=str,nargs='+')
     id_select.add_argument('--group',help='denote the selected id group',type=str)
     id_select.add_argument('--remove',help='remove entries by ID',type=str,nargs='+')
     id_select.add_argument('--out',help='Output txt',type=str)
     
-    id_matrix = subparsers.add_parser('matrix', help='generate design and contrast matrix for fba')
-    id_matrix.add_argument('--file',help='csv file name', type=str)
+    id_matrix = subparsers.add_parser('matrix',parents=[parent_parser],help='generate design and contrast matrix for fba')
     id_matrix.add_argument('--categorical',help='denote columns containing categorical variable',nargs='+',type=int)
     id_matrix.add_argument('--continuous',help='denote columns containing continuous variables',nargs='+',type=int)
     id_matrix.add_argument('--standardize', help='standardize the continuous variables',action='store_true')
     id_matrix.add_argument('--no-standardize',dest='standardize',action='store_false')
-    id_matrix.add_argument('--contrast',help='define the column to contrast',type=int)
+    id_matrix.add_argument('--contrast',help='define the column to contrast',nargs='+')
     id_matrix.add_argument('--catnames',help='assign column names to categorical variable',nargs='+',type=str)
     id_matrix.add_argument('--contnames',help='assign column names to continuous variables',nargs='+',type=str)
     id_matrix.add_argument('--out_ID',help='output for ID file')
@@ -151,20 +152,26 @@ class Generateids:
             ID_list = [','.join(ID_pd.iloc[row,:].tolist()) for row in range(len(ID_pd))]
 
         if isinstance(foldername,str):
+            print(foldername)
             if foldername[-1] == '/':
                 foldername = foldername[:-1]
             if isinstance(pattern,list):
                 new_pattern ='/'.join(pattern) # a/b/c
             pattern_to_search ='/'.join([foldername,new_pattern])
+            print(pattern_to_search)
             pattern_list = glob.glob(pattern_to_search)
             ID_list = [i.replace(foldername+'/','') for i in pattern_list]
             if not duplicated:
                 folder=defaultdict(list)
-                for i,j in map(lambda x: x.split('/'),ID_list):
-                    if len(folder[i])>1:
-                        folder[i]=[]
-                    folder[i].append(j)
-                ID_list = ['/'.join([i,j[0]]) for i,j in folder.items()]
+                try:
+                    for i,j in map(lambda x: x.split('/'),ID_list):
+                        if len(folder[i])>1:
+                            folder[i]=[]
+                        folder[i].append(j)
+                    ID_list = ['/'.join([i,j[0]]) for i,j in folder.items()]
+                except ValueError:
+                    pass
+
         if isinstance(previous_IDs,list):
             new_list = Generateids.get_common_IDs(ID_list,previous_IDs,get_differences=get_differences)
             ID_list = [','.join(new_list.iloc[row,:].tolist()) for row in range(len(new_list))]
@@ -217,7 +224,9 @@ class Generateids:
 
     @staticmethod
     def select_IDs(filename:str=None,
-                   sep=',',
+                   sep:str=None,
+                   delim_whitespace:bool=False,
+                   header:int=None,
                    criteria:List[str]=None,
                    group:str=None,
                    previous_IDs:str=None,
@@ -251,11 +260,11 @@ class Generateids:
 
         """
         if isinstance(filename,str):
-            ID_pd = pd.read_csv(filename,sep=sep,header=None)
-        else:
-            ID_pd = pd.DataFrame([ID.split(sep) for ID in filename])
-            #['4' '37' '-gt' 4 '37' '-lt']
-        updated_ID_pd = ID_pd.copy()
+            if delim_whitespace:
+                file = pd.read_csv(filename,header=header,delim_whitespace=True)
+            elif isinstance(sep,str):
+                file = pd.read_csv(filename,header=header,sep=sep)
+        updated_ID_pd = file.copy()
 
         if isinstance(criteria,list):
             commands =(criteria[i:i+3] for i in range(0,len(criteria),3))
@@ -266,6 +275,7 @@ class Generateids:
                     except ValueError:
                         value ="'{}'".format(value)
                 command = 'updated_ID_pd.iloc[:,'+column+']'+operation+value
+                print(command)
                 evaluation = eval(command)
                 updated_ID_pd = updated_ID_pd[evaluation]
         updated_ID_pd = updated_ID_pd.astype(str)
@@ -290,15 +300,18 @@ class Generateids:
     
     @staticmethod
     def get_design_contrast_matrix(filename:str=None,
-                            categoricalVariable:List[int]=None,
-                            continuousVariable:List[int]=None,
-                            standardize:bool=True,
-                            contrast:int=None,
-                            categorical_Names:List[str]=None,
-                            continuous_Names:List[str]=None,
-                            ID_file:str=None,
-                            contrast_file:str=None,
-                            design_file:str=None):
+                                   sep:str=None,
+                                   delim_whitespace:bool=False,
+                                   header:int=None,
+                                   categoricalVariable:List[int]=None,
+                                   continuousVariable:List[int]=None,
+                                   standardize:bool=True,
+                                   contrast:int=None,
+                                   categorical_Names:List[str]=None,
+                                   continuous_Names:List[str]=None,
+                                   ID_file:str=None,
+                                   contrast_file:str=None,
+                                   design_file:str=None):
         """
         Parameters
         ----------
@@ -333,9 +346,11 @@ class Generateids:
 
         """
         if isinstance(filename,str):
-            ID_pd = pd.read_csv(filename,header=None)
-
-        name_file = ID_pd[0].apply(lambda x:x.replace('/','_')+'.mif')
+            if delim_whitespace:
+                ID_pd = pd.read_csv(filename,header=header,delim_whitespace=True)
+            elif isinstance(sep,str):
+                ID_pd = pd.read_csv(filename,header=header,sep=sep)
+        name_file = ID_pd.iloc[:,0].apply(lambda x:x.replace('/','_')+'.mif')
         ID_list = name_file.tolist()
         if isinstance(ID_file,str):
             with open(ID_file,'a') as f:
@@ -373,17 +388,30 @@ class Generateids:
         design_pd['intercept'] = [1 for i in range(len(ID_pd))]
         design_pd = pd.concat([design_pd,category_pd,continuous_pd],axis=1)
         independentVariable=categoricalVariable+continuousVariable
+        independentVariable_names = design_pd.columns.tolist()[1:]
         
-        contrast_matrix = [0 for i in range(len(independentVariable) +1 )]
-        if isinstance(contrast,int):
-            if contrast in independentVariable:
-                contrast_id = [idx for idx,i in enumerate(independentVariable) if i == contrast]
-                contrast_matrix[contrast_id[0]+1] = 1
-        
+        contrast_matrix = []
+        if isinstance(contrast,list):
+            if contrast[0].isdigit():
+                contrast = [int(i) for i in contrast]
+                for hypothesis in contrast:
+                    contrast_matrix_temp = [0 for i in range(len(independentVariable) +1 )]
+                    contrast_id = [idx for idx,i in enumerate(independentVariable) if i == hypothesis]
+                    contrast_matrix_temp[contrast_id[0]+1] = 1
+                    contrast_matrix.append(contrast_matrix_temp)
+            else:
+                for hypothesis in contrast:
+                    contrast_matrix_temp = [0 for i in range(len(independentVariable_names) +1 )]
+                    contrast_id = [idx for idx,i in enumerate(independentVariable_names) if i == hypothesis]
+                    contrast_matrix_temp[contrast_id[0]+1] = 1
+                    contrast_matrix.append(contrast_matrix_temp)
+            
         if isinstance(contrast_file,str):
             with open(contrast_file,'w') as f:
-                for number in contrast_matrix:
-                    f.write(str(number)+' ')
+                for hypothesis in contrast_matrix:
+                    f.writelines(' '.join([str(i) for i in hypothesis]))
+                    f.writelines('\n')
+    
         if isinstance(design_file,str):
             design_pd = design_pd.astype('str')
             design_matrix = [' '.join(design_pd.iloc[row,:].tolist()) for row in range(len(design_pd))]
@@ -423,13 +451,19 @@ if __name__ == '__main__':
     elif sys.argv[1] == 'select':
         Generateids.select_IDs(filename=args.file,
                                sep=args.sep,
+                               delim_whitespace=args.delim_whitespace,
+                               header=args.header,
                                criteria=args.criteria,
                                group=args.group,
                                previous_IDs=previous_IDs,
                                remove_IDs=args.remove,
                                out=args.out)
+
     elif sys.argv[1] == 'matrix':
         Generateids.get_design_contrast_matrix(filename=args.file,
+                                               sep=args.sep,
+                                               delim_whitespace=args.delim_whitespace,
+                                               header=args.header,
                                                categoricalVariable=args.categorical,
                                                continuousVariable=args.continuous,
                                                standardize=args.standardize,
