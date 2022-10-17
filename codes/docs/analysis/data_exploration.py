@@ -548,10 +548,11 @@ class MassUnivariate:
         if not cont_independentVar_cols:
             cont_independentVar_cols = []
         total_predictors = cat_independentVar_cols + cont_independentVar_cols
-
+        
         # for k in range(1,len(total_predictors)+1):
         for k in tqdm.tqdm(range(1, len(total_predictors)+1)):
             k_combo = combinations(total_predictors, k)
+            
             for idx, model_combo in enumerate(k_combo):
 
                 cat_independentVar_cols_temp = []
@@ -562,7 +563,11 @@ class MassUnivariate:
                         cat_independentVar_cols_temp.append(covar)
                     elif covar in cont_independentVar_cols:
                         cont_independentVar_cols_temp.append(covar)
-
+                if len(cat_independentVar_cols_temp) == 0:
+                    cat_independentVar_cols_temp = None
+                if len(cont_independentVar_cols_temp) == 0:
+                    cont_independentVar_cols_temp = None
+                
                 model_temp, _ = cls.mass_univariate(df=df,
                                                 cat_independentVar_cols=cat_independentVar_cols_temp,
                                                 cont_independentVar_cols=cont_independentVar_cols_temp,
