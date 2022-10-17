@@ -154,9 +154,9 @@ class Volumes:
         """
         new_df = df.copy()
         
-        WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['Imperial 48']
+        WM_labels = [f'Imperial {i}' for i in range(51,83)]# + ['Imperial 48']
         GM_labels = [f'Imperial {i}' for i in range(5,17)] + [f'Imperial {i}' for i in range(20,40)]
-        DGM_labels = [f'Imperial {i}' for i in range(1,5)] + [f'Imperial {i}' for i in range(40,48)] + [f'Imperial {i}' for i in range(86,88)]
+        DGM_labels = [f'Imperial {i}' for i in range(1,5)] + [f'Imperial {i}' for i in range(40,48)] + [f'Imperial {i}' for i in range(85,88)]
         Ventricles_labels = [f'Imperial {i}' for i in range(49,51)]
         Brainstem_labels = ['Imperial 19']
         Cerebellum_labels = ['Imperial 17','Imperial 18']
