@@ -90,6 +90,7 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
         linewdith: float
         markersize: float
         legend_loc {outside, inside}
+        hide_CI=False
     Returns
     -------
     ax
