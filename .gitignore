@@ -21,3 +21,4 @@ codes/FBA/dhcp_neo_dMRI_derived
 codes/FBA/atlas
 codes/FBA/euro_SCZ_PRS_term.csv
 *.csv
+*.png
