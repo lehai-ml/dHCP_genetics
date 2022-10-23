@@ -511,6 +511,8 @@ class MassUnivariate:
     def check_all_predictors_combo_linear_Reg(cls,df: Optional[pd.DataFrame],
                                             cat_independentVar_cols: Optional[List[str]] = None,
                                             cont_independentVar_cols: Optional[List[str]] = None,
+                                            check_cols:Optional[List[str]]=None,
+                                            check_plan:Optional[str]=None,
                                             dependentVar_cols: Optional[List[str]] = None):
         """[Perform univariate test on all combinations of predictors]
 
@@ -537,7 +539,7 @@ class MassUnivariate:
 
             dictionary[model_name].append(
                 [len_variables, variables, coefs, p_vals, aic, R2, R2_adj])
-
+        
         null_model, _ = cls.mass_univariate(df=df,
                                         cat_independentVar_cols=None,
                                         cont_independentVar_cols=None,
@@ -549,14 +551,16 @@ class MassUnivariate:
             cont_independentVar_cols = []
         total_predictors = cat_independentVar_cols + cont_independentVar_cols
         
-        # for k in range(1,len(total_predictors)+1):
-        for k in tqdm.tqdm(range(1, len(total_predictors)+1)):
-            k_combo = combinations(total_predictors, k)
-            
-            for idx, model_combo in enumerate(k_combo):
-
-                cat_independentVar_cols_temp = []
-                cont_independentVar_cols_temp = []
+        check_all=False
+        if not check_cols:
+            check_all=True
+            check_cols = total_predictors
+        
+        if check_plan=='sequential':
+            k_combo = (check_cols[0:n] for n in range(1,len(check_cols)+1))
+            for idx,model_combo in tqdm.tqdm(enumerate(k_combo)):
+                cat_independentVar_cols_temp = [i for i in cat_independentVar_cols if i not in check_cols]
+                cont_independentVar_cols_temp = [i for i in cont_independentVar_cols if i not in check_cols]
                 for _, covar in enumerate(model_combo):
 
                     if covar in cat_independentVar_cols:
@@ -573,8 +577,36 @@ class MassUnivariate:
                                                 cont_independentVar_cols=cont_independentVar_cols_temp,
                                                 dependentVar_cols=dependentVar_cols)
 
-                model_name_temp = str(k)+'_'+str(idx)
+                model_name_temp = str(len(model_combo))+'_'+str(idx)
                 print_model_results(model_temp, model_name_temp)
+        # for k in range(1,len(total_predictors)+1):
+        else:
+            for k in tqdm.tqdm(range(1, len(check_cols)+1)):
+                k_combo = combinations(check_cols, k)
+                for idx, model_combo in enumerate(k_combo):
+                    cat_independentVar_cols_temp = []
+                    cont_independentVar_cols_temp = []
+                    if not check_all:
+                        cat_independentVar_cols_temp = [i for i in cat_independentVar_cols if i not in check_cols]
+                        cont_independentVar_cols_temp = [i for i in cont_independentVar_cols if i not in check_cols]
+                    for _, covar in enumerate(model_combo):
+    
+                        if covar in cat_independentVar_cols:
+                            cat_independentVar_cols_temp.append(covar)
+                        elif covar in cont_independentVar_cols:
+                            cont_independentVar_cols_temp.append(covar)
+                    if len(cat_independentVar_cols_temp) == 0:
+                        cat_independentVar_cols_temp = None
+                    if len(cont_independentVar_cols_temp) == 0:
+                        cont_independentVar_cols_temp = None
+                    
+                    model_temp, _ = cls.mass_univariate(df=df,
+                                                    cat_independentVar_cols=cat_independentVar_cols_temp,
+                                                    cont_independentVar_cols=cont_independentVar_cols_temp,
+                                                    dependentVar_cols=dependentVar_cols)
+    
+                    model_name_temp = str(k)+'_'+str(idx)
+                    print_model_results(model_temp, model_name_temp)
 
         return all_models
 
