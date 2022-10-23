@@ -9,11 +9,3 @@ preprocessed_dataset/
 *.xlsx
 *.txt
 *.svg
-*.mif
-*.tck
-*.csv
-codes/FBA/dhcp_neo_dMRI_derived
-codes/FBA/atlas
-*.swp
-codes/FBA/data
-*.png
