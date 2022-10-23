@@ -162,3 +162,50 @@ function sanity_check {
   fi
   done
 }
+
+# Convenience function to generate mask of ROIs to be using mrcalc.
+# For example, the result can be used in tckgen to include or exclude
+# certain tracks.
+# usage:
+# generate_track_mask [file] [identifier] [binary_mask] [output]
+# where file is a text file containing the
+#    Include: 10 11 12 
+#    Include: 13 14
+#    Exclude: 15 16 17 18 19
+#Where each rows that you want to combine is preceded by the same identifier.
+#e.g. Include
+#For example generate_track_mask file.txt "Include:" [binary_mask] [output]
+# will reiteratively get regions 10, 11, 12, 13, 14 in the binary mask and
+# combine into a single image using mrcalc.
+#e.g.max(max(max((mrcalc binary_mask == 10), (binary_mask==11)),
+#max((binary_mask==12),(binary_mask==13))),(binary_mask==14))
+
+function generate_binary_mask {
+    file=$1
+    identifier=$2
+    include=()
+    while read line; do
+    if [[ $line == $(echo $identifier*) ]]; then
+	include+=(${line#$identifier})
+    fi
+    done < $file
+    shift 2
+    template=$1
+    shift
+    #create mask of things to include and exclude
+    to_eval="mrcalc "
+    output=$1
+    for (( i=0; i<${#include[@]}; ++i )); do
+	current_count=$((i+1))
+        region="${include[i]}"
+        to_eval+=$(echo $template $region -eq " ")
+	while [[ $((current_count % 2 )) -eq 0 ]]; do
+	    to_eval+="-max "
+	    current_count=$((current_count/2))
+	done
+    done
+    to_eval+=$output
+    eval ${to_eval[@]}
+}
+
+

@@ -92,6 +92,21 @@ dt_adc=dt_adc.mif
 dt_rd=dt_rd.mif
 dt_ad=dt_ad.mif
 
+#Relevant file for generating tracts
+tract_binary_masks=tract_binary_masks
+interhemispheric_exclude=interhemispheric_exclude.mif
+UF_Right_include=UF_Right_include.mif
+UF_Right_exclude=UF_Right_exclude.mif
+UF_Left_include=UF_Left_include.mif
+UF_Left_exclude=UF_Left_exclude.mif
+wm_tracts=wm_tracts.txt
+
+UF_Right_tract="UF_Right_${number_of_streamlines}.tck"
+UF_Right_Reduced_tract="UF_Right_reduced_${reduced_number_of_streamlines
+}.tck"
+
+UF_Left_tract="UF_Left_${number_of_streamlines}.tck"
+UF_Left_Reduced_tract="UF_Left_reduced_${reduced_number_of_streamlines}"
 set -e
 
 . support_functions.sh
@@ -127,6 +142,8 @@ cd $src
 cd $src
 #. tractography.sh
 cd $src
-. perform_fba.sh
+#. perform_fba.sh
 cd $src
 #. calculate_dti.sh
+cd $src
+. wm_tracts.sh
