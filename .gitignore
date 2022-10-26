@@ -22,3 +22,8 @@ codes/FBA/atlas
 codes/FBA/euro_SCZ_PRS_term.csv
 *.csv
 *.png
+codes/gene_set/PRSice/lib
+codes/gene_set/PRSice/output
+codes/gene_set/PRSice/PRSice.R
+codes/gene_set/PRSice/PRSice_linux
+codes/gene_set/PRSice/genetic_data
