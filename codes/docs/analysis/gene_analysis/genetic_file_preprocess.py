@@ -210,3 +210,46 @@ def preprocess_david_gene_functional_classification_files(gene_func_class: pd.Da
 
     df = df.drop(to_remove_indices).reset_index(drop=True)
     return df, summary_df
+
+def generate_gmt_file(df:pd.DataFrame,
+                      gene_nr_col:Union[str,int]=0,
+                      gene_set_col:Union[str,int]=1,
+                      out:str=None):
+    
+    if isinstance(gene_nr_col, str):
+        gene_nr_col = [idx for idx,i in enumerate(df.columns) if i==gene_nr_col][0]
+    if isinstance(gene_set_col, str):
+        gene_set_col = [idx for idx,i in enumerate(df.columns) if i==gene_set_col][0]
+    gene_sets = df.iloc[:,[gene_nr_col,gene_set_col]].copy()
+    gene_sets.columns = ['gene_nr','gene_set']
+    
+    
+    gene_sets['gene_nr'] = gene_sets['gene_nr'].astype('int64') # if it is float it will be int
+    gene_sets['gene_nr'] = gene_sets['gene_nr'].astype('str') # we need it to be string to print
+    gene_sets['gene_set'] = gene_sets['gene_set'].astype('str')
+    
+    gene_sets_dict = gene_sets.groupby('gene_set').agg(lambda x: x.tolist()).to_dict('index')
+    if isinstance(out,str):
+        with open(out,'a') as f:
+            for gene_set in gene_sets_dict.keys():
+                to_print = '\t'.join([gene_set] + [str(gene) for gene in gene_sets_dict[gene_set]['gene_nr']])
+                f.writelines(to_print)
+                f.writelines('\n')
+    else:
+        for gene_set in gene_sets_dict.keys():
+            to_print = '\t'.join([gene_set] + [str(gene) for gene in gene_sets_dict[gene_set]['gene_nr']])
+            print(to_print)
+            
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+        
+    
+    
