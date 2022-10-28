@@ -240,6 +240,55 @@ def generate_gmt_file(df:pd.DataFrame,
             to_print = '\t'.join([gene_set] + [str(gene) for gene in gene_sets_dict[gene_set]['gene_nr']])
             print(to_print)
             
+
+def convert_gene_id_to_gene_name(gmt_file:Union[dict,str],
+                               gene_build:Union[dict,str,pd.DataFrame]=None,
+                               gene_id_col:Union[str,int]=None,
+                               gene_name_col:Union[str,int]=None,
+                               reverse:bool=False,
+                               out:str=None):
+    gene_sets_dict = defaultdict(list)
+    if isinstance(gmt_file,str):
+        with open(gmt_file,'r') as f:
+            for line in f.readlines():
+                geneset = line.strip().replace('\t',',').split(',')
+                gene_sets_dict[geneset[0]]=geneset[1:]
+    if isinstance(gene_id_col,str):
+        if gene_id_col.isdigit():
+            gene_id_col = int(gene_id_col)
+    if isinstance(gene_name_col,str):
+        if gene_name_col.isdigit():
+            gene_name_col = int(gene_name_col)
+    if not isinstance(gene_build, dict):
+        if isinstance(gene_build,str):
+            gene_build = pd.read_table(gene_build,header=None,usecols=[gene_id_col,gene_name_col],names=['Gene_ID','Gene_Name'])
+        elif isinstance(gene_build,pd.DataFrame):
+            if isinstance(gene_id_col,int) and isinstance(gene_name_col,int):
+                gene_build = gene_build.iloc[:,[gene_id_col,gene_name_col]]
+            elif isinstance(gene_id_col,str) and isinstance(gene_name_col,str) and not gene_id_col.isdigit():
+                gene_build = gene_build.loc[:,[gene_id_col,gene_name_col]]
+            gene_build.columns = ['Gene_ID','Gene_Name']
+        gene_build = dict(zip(gene_build.Gene_ID,gene_build.Gene_Name))
+    # in case you have differing types
+    if not reverse: # convert gene ID in gmt file to Gene names
+        gene_convert_dict = {str(k):v for k,v in gene_build.items()}
+    else:# convert gene names in gmt file to gene ID
+        gene_convert_dict = {v:str(k) for k,v in gene_build.items() if not (isinstance(v,list) and len(v)>1)}
+
+    if isinstance(out,str):
+        with open(out,'a') as f:
+            for gene_set in gene_sets_dict.keys():
+                to_print = '\t'.join([gene_set] + [gene_convert_dict[gene] for gene in gene_sets_dict[gene_set] if gene in gene_convert_dict ])
+                f.writelines(to_print)
+                f.writelines('\n')
+    else:
+        for gene_set in gene_sets_dict.keys():
+            to_print = '\t'.join([gene_set] + [gene_convert_dict[gene] for gene in gene_sets_dict[gene_set] if gene in gene_convert_dict ])
+            print(to_print)
+        
+    
+            
+        
     
     
     
