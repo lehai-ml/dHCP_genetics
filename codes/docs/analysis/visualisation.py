@@ -19,6 +19,7 @@ import copy
 from matplotlib.collections import LineCollection
 import matplotlib.patches as mpatches
 import matplotlib as mpl
+from matplotlib.colors import ListedColormap
 from collections import defaultdict
 
 # def nx_kamada_kawai_layout(test_graph):
@@ -48,8 +49,214 @@ from collections import defaultdict
 #         result = original_function(*args, **kwargs)
 #         return result
 #     return wrapper
+class simple_plots:
+    
+    @staticmethod
+    def Barplot(x: Union[np.ndarray,pd.DataFrame,pd.Series,str],
+                y: Union[np.ndarray, pd.DataFrame, pd.Series, str],
+                colorby:Union[np.ndarray,pd.DataFrame,pd.Series,str]=None,
+                separateby:Union[np.ndarray,pd.DataFrame,pd.Series,str]=None,
+                data: Optional[pd.DataFrame] = None,
+                hue: Optional[str] = None,
+                title: str = None,
+                xlabel: str = None,
+                ylabel: str = None,
+                ax = None, **figkwargs) -> None:
+        
+        if isinstance(x,(pd.DataFrame,pd.Series)):
+            x = x.tolist()
+        elif isinstance(x, str):
+            x = data.loc[:, x].tolist()
+        #make sure x is all strings
+        if not isinstance(x[0],str):
+            x = [str(i) for i in x]
+        x = list(set(x))
+        x_pos = np.arange(len(x))
+        if isinstance(y, (pd.DataFrame, pd.Series)):
+            y = y.values
+        elif isinstance(y, str):
+            y = data.loc[:, y].values
+        if isinstance(colorby,(pd.DataFrame,pd.Series)):
+            colorby = colorby.values
+        elif isinstance(colorby,str):
+            colorby = data.loc[:,colorby].values
+        if isinstance(separateby,(pd.DataFrame,pd.Series)):
+            separateby = separateby.values
+        elif isinstance(separateby,str):
+            separateby = data.loc[:,separateby].values
+        if isinstance(hue,(pd.DataFrame,pd.Series)):
+            hue = hue.values
+        elif isinstance(hue,str):
+            hue = data.loc[:,hue].values
+        if 'yscalelog' not in figkwargs:
+            figkwargs['yscalelog'] = False
+        if 'horizontal' not in figkwargs:
+            figkwargs['horizontal'] = None
+        if 'rotation_x' not in figkwargs:
+            figkwargs['rotation_x'] = 0
+        if 'colorbar_axes' not in figkwargs:
+            figkwargs['colorbar_axes'] = [0.85, 0.15, 0.01, 0.7]
+        if 'colorbar_label' not in figkwargs:
+            figkwargs['colorbar_label'] = None
+        if 'xlabel_pos' not in figkwargs:
+            figkwargs['xlabel_pos'] = (.48,.01)
+        if 'ylabel_pos' not in figkwargs:
+            figkwargs['ylabel_pos'] = (.1,.5)
+        if 'figsize' not in figkwargs:
+            figkwargs['figsize'] = None
+        if 'barwidth' not in figkwargs:
+            figkwargs['barwidth'] = 0.35
+                
+        if separateby is not None: # plot different category into different plots. Useful when you want to show a common colorbar
+            uniq_separateby = np.unique(separateby)
+            if len(uniq_separateby)>3:
+                row = int(np.ceil(len(uniq_separateby)/3))
+                column = 3
+            else:
+                row =1
+                column = len(uniq_separateby)
+                fig,axes = plt.subplots(row,column,sharex=True,sharey=True,figsize=figkwargs['figsize'])
+                if len(axes) > 1:
+                    axes = axes.flatten()
+                else:
+                    axes = [axes]
+        else:
+            row = 1
+            column = 1
+            if ax is None:
+                fig, ax = plt.subplots(figsize=figkwargs['figsize'])
+            axes = [ax]
 
+        if colorby is not None: # color of the bar, it will be consistent across multiple plots if seperateby is defined.
+            pal = sns.color_palette('coolwarm',len(colorby))
+            rank = colorby.argsort().argsort()
+            my_cmap = ListedColormap(pal)
+            norm = plt.Normalize(colorby.min(),colorby.max())
+            sm = plt.cm.ScalrMappable(cmap=my_cmap,norm=norm)
+            sm.set_array([])
+            color = np.array(pal)[rank]
+        else:
+            color = None
+            
+        if figkwargs['yscalelog']:
+            plt.yscale('log')
+        
+        if hue is not None:
+            def plot_group_bar_chart(x_pos,y,barwidth,label_idx,label,unique_hue,ax,color=None):
+                mean_pos = np.arange(1,len(unique_hue)+1).mean()
+                if len(unique_hue)%2==0:
+                    if (label_idx+1) < mean_pos:
+                        shift = (label_idx+1) - int(np.ceil(mean_pos))
+                    else:
+                        shift = (label_idx+1) - int(np.floor(mean_pos))
+                else:
+                    shift = (label_idx+1) - int(np.floor(mean_pos))
+                print(x_pos)
+                print(shift*(barwidth/len(unique_hue)))
+                print(y)
+                ax.bar(x_pos+(shift*(barwidth/len(unique_hue))),
+                       y,
+                       barwidth,
+                       color=color,label=label)
+                return ax
+                    
+        for idx, ax in enumerate(axes):
+            if separateby is not None:
+                current_separateby_index = np.where(separateby==uniq_separateby[idx])
+                temp_x = x[current_separateby_index]
+                temp_y = y[current_separateby_index]
+                temp_x_pos = np.arange(len(np.unique(temp_x)))
 
+                if hue is not None:
+                    temp_hue = hue[current_separateby_index]
+                else:
+                    temp_hue = None
+                if color is not None:
+                    color_separately = color[current_separateby_index]
+                else:
+                    color_separately = None
+
+                if hue is not None:
+                    unique_hue = np.unique(hue)
+                    for label_idx,label in enumerate(unique_hue):
+                        ax = plot_group_bar_chart(temp_x_pos, 
+                                             temp_y[np.where(temp_hue == label)],
+                                             figkwargs['barwidth'], 
+                                             label_idx, 
+                                             label, 
+                                             unique_hue,
+                                             ax,
+                                             color=color_separately)
+                else:
+                    ax.bar(temp_x_pos,temp_y,color=color_separately)
+                ax.set_title(f'{uniq_separateby[idx]}',fontsize=20)
+                ax.set_xticks(temp_x_pos,temp_x)
+                ax.set(xlabel=None)
+                ax.set(ylabel=None)
+            
+            else:
+                if hue is not None:
+                    unique_hue = np.unique(hue)
+                    for label_idx,label in enumerate(unique_hue):
+                        ax = plot_group_bar_chart(x_pos, 
+                                             y[np.where(hue == label)],
+                                             figkwargs['barwidth'], 
+                                             label_idx, 
+                                             label, 
+                                             unique_hue,
+                                             ax,
+                                             color=None)
+                else:
+                    ax.bar(x_pos,y,color=color)
+                ax.set_xticks(x_pos,x)
+            
+            if figkwargs['horizontal'] is not None:
+                ax.hlines(figkwargs['horizontal'],0,len(y)-1)
+            if 'xlabel_fontdict' not in figkwargs:
+                figkwargs['xlabel_fontdict'] = 10
+            
+            if row > 1:
+                if (idx >= 3):
+                    ax.tick_params(axis='x',
+                                   rotation=figkwargs['rotation_x'],
+                                   labelsize=figkwargs['xlabel_fontdict'])
+            else:
+                
+                ax.tick_params(axis='x',
+                               rotation=figkwargs['rotation_x'],
+                               labelsize=figkwargs['xlabel_fontdict'])
+        
+        
+        if figkwargs['colorbar_label'] is not None:
+            if colorby is None:
+                raise AttributeError('you have not defined colorby and you want to have a color label')
+            cbar_ax = fig.add_axes(figkwargs['colorbar_axes'])
+            cbar = ax.figure.colorbar(sm, cax=cbar_ax)
+            cbar.set_label(figkwargs['colorbar_label'], size=12)
+
+        if len(axes) > 1:
+            fig.subplots_adjust(right=0.80)
+            fig.text(figkwargs['xlabel_pos'][0], 
+                     figkwargs['xlabel_pos'][1], 
+                     xlabel, 
+                     ha='center', size='xx-large')
+            fig.text(figkwargs['ylabel_pos'][0], figkwargs['ylabel_pos'][1],
+                     ylabel,
+                     va='center',
+                     rotation='vertical',
+                     size='xx-large')
+            fig.suptitle(
+                figkwargs['title'],
+                size='xx-large')
+        
+        else:
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+        
+        
+        
+        
+    
 def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
                     y: Union[np.ndarray, pd.DataFrame, pd.Series, str],
                     data: Optional[pd.DataFrame] = None,
@@ -58,7 +265,8 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
                     title: str = None,
                     xlabel: str = None,
                     ylabel: str = None,
-                    ax = None,scaling = 'both', **figkwargs) -> None:
+                    ax = None,
+                    scaling:str = 'both', **figkwargs) -> None:
     """
     Fit linear regression, where y~x. calculates the pval and beta coefficient.
     
@@ -82,9 +290,9 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
          label on x axis. The default is None.
     ylabel : str, optional
         label on y axis. The default is None.
-    axes : TYPE, optional
+    axes : np.array, optional
         if provided plt.subplots. The default is None.
-    scaling : TYPE, optional
+    scaling : str, optional
         whether to scale x and y. The default is 'both'.
     **figkwargs :
         linewdith: float
@@ -233,6 +441,7 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
 #     plt.title(title)
     # corr, p = pearsonr(x, y)
 #     plt.figtext(0, 0, 'corr=%0.03f, pval=%0.03f' % (corr, p))
+
 
 def draw_box_plots(df,
                    dependentVar=None,
