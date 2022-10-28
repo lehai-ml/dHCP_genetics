@@ -27,3 +27,6 @@ codes/gene_set/PRSice/output
 codes/gene_set/PRSice/PRSice.R
 codes/gene_set/PRSice/PRSice_linux
 codes/gene_set/PRSice/genetic_data
+PLINK1_9/
+*.gmt
+codes/gene_set/PRSice/.RData
