@@ -21,6 +21,10 @@ import matplotlib.patches as mpatches
 import matplotlib as mpl
 from matplotlib.colors import ListedColormap
 from collections import defaultdict
+from itertools import product
+
+from functools import reduce  # forward compatibility for Python 3
+import operator
 
 # def nx_kamada_kawai_layout(test_graph):
 #     '''
@@ -52,42 +56,229 @@ from collections import defaultdict
 class simple_plots:
     
     @staticmethod
-    def Barplot(x: Union[np.ndarray,pd.DataFrame,pd.Series,str],
-                y: Union[np.ndarray, pd.DataFrame, pd.Series, str],
-                colorby:Union[np.ndarray,pd.DataFrame,pd.Series,str]=None,
-                separateby:Union[np.ndarray,pd.DataFrame,pd.Series,str]=None,
+    def check_data_types(x:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
+                         data:Optional[pd.DataFrame]=None,
+                         must_be:Optional[str]=None):
+        if x is None:
+            return None
+        if isinstance(x,(pd.DataFrame,pd.Series)):
+            x = x.values
+        elif isinstance(x, str):
+            x = data.loc[:, x].values
+        #make sure x is all strings
+        elif isinstance(x, list):
+            x = np.array(x)
+        if must_be == 'str':
+            if not isinstance(x[0],str):
+                x = np.array([str(i) for i in x])
+        elif must_be == 'int':
+            if not isinstance(x[0],int):
+                x = np.array([int(i) for i in x])
+        return x
+    
+    class Groupby:
+        
+        @staticmethod
+        def groupby(*args,**kwargs)->dict:
+            """
+            Perform groupby operation based on several arguments to return a defaultdict dictionary
+            It is recommended for the args to be discrete or categorical variables (because we are taking the unique values)
+            Kwargs can be both categorical or continuous. But if it is for a bar plot, it should be continuous variables.
+            This function is similar to using pd.DataFrame groupby, pd.set_index.
+            You can have as many level of args or kwargs as you want.
+            Usage example:
+                x = ['foo1', 'foo2', 'foo1', 'foo2']
+                y = [-0.4, 0.3, 1.4, 1.3] 
+                color = ['red', 'blue', 'red', 'red'] 
+                gender = [2, 1, 1, 3]
+            groupby(x,y=y): will group by x values. to produce
+            {'foo1':{'y':[-0.4,1.4]},'foo2':{'y':[0.3,1.3]}}
+            groupby(x,color,y=y) will group by x and color value to produce
+            {'foo1': {'blue': defaultdict(list, {'y': []}),
+              'red': defaultdict(list, {'y': [-0.4, 1.4]})},
+             'foo2': {'blue': defaultdict(list, {'y': [0.3]}),
+              'red': defaultdict(list, {'y': [1.3]})}}
+            grouby(x,color,y=y,gender=gender) will groupby by x and color value to produce
+            {'foo1': {'blue': defaultdict(list, {'y': [], 'gender': []}),
+              'red': defaultdict(list, {'y': [-0.4, 1.4], 'gender': [2, 1]})},
+             'foo2': {'blue': defaultdict(list, {'y': [0.3], 'gender': [1]}),
+              'red': defaultdict(list, {'y': [1.3], 'gender': [3]})}})
+            
+            
+            Parameters
+            ----------
+            *args : np.ndarray
+                set of discrete or categorical variables
+            **kwargs : np.ndarray
+                the values to plot (e.g. on y-axis or to color the bar by)
+
+            Returns
+            -------
+            temp_plot_dict : dict
+                A nested dictionary, where the dictionary keys are made up of the *args,
+                and the values in the deepest layer are the **kwargs
+
+            """
+            # create a dictionary set that contains as keys all the possible combinations of arguments
+            def dictionary_merge(dict1,dict2):
+            #convenience function to merge nested dictionary together
+                for key in dict2:
+                    if key in dict1:
+                        if isinstance(dict1[key],dict) and isinstance(dict2[key],dict):
+                            dictionary_merge(dict1[key],dict2[key])
+                    else:
+                        dict1[key]=dict2[key]
+                return dict1
+            
+            temp_plot_dict=defaultdict(dict)
+            args = [i for i in args if i is not None]
+            kwargs = {k:v for k,v in kwargs.items() if v is not None}
+            all_unique_keys = [tuple(set(i)) for i in args]
+            all_possible_keys = product(*all_unique_keys)
+            all_values = list(kwargs.keys())
+            for keys_combo in all_possible_keys:
+                temp_dict = defaultdict(list)
+                for value in all_values:
+                    temp_dict[value] = []
+                for i in reversed(keys_combo):
+                    temp_dict = {i:temp_dict}
+                for key,value in temp_dict.items():
+                    if key in temp_plot_dict:
+                        temp_plot_dict[key] = dictionary_merge(temp_plot_dict[key],value)
+                    else:
+                        temp_plot_dict[key] = value
+            len_args = len(args)
+            for key_vals in zip(*args,*kwargs.values()):
+                keys = key_vals[:len_args]
+                vals = key_vals[len_args:]
+                obj = temp_plot_dict[keys[0]]
+                for key_idx,key in enumerate(keys):
+                    if key_idx != 0:
+                        obj = obj[key]
+                    for idx,name_val in enumerate(all_values):
+                        if name_val in obj:
+                            obj[name_val].append(vals[idx])
+                    
+            return temp_plot_dict
+
+        @staticmethod
+        def groupby_operation(groupby_dict:dict,operation:Union[dict,str])->dict:
+            """
+            Perform groupby operation on the output of groupby function.
+            Performs recursive opening of the nested dictionary to perform some
+            operations on the last layer of the dictionary
+            Parameters
+            ----------
+            groupby_dict : dict
+                Nested dictionary, output from groupby function
+
+            operation : Union[dict,str]
+                operation to be performed on the deepest layer of the nested dictionary
+                IF str:{'sum','mean','count','first','last','max','min'}.
+                This operation will be applied to all lists in the last layer irrespective of the name.
+                IF dict, the key must be the key of the lists in the last layer.
+                e.g. {'y':'sum','color':'first'}. This will find the key y
+                in the last layer and perform sum but will find the key color and perform first.
+                
+            Returns
+            -------
+            dict
+                Updated groupby_dict
+            """
+            def do_operation(v,operation):
+                if len(v) == 0:
+                    v = [0]
+                if operation == 'sum':
+                    return np.sum(v)
+                elif operation == 'mean':
+                    return np.mean(v)
+                elif operation == 'count':
+                    return np.count_nonzero(v)
+                elif operation =='first':
+                    return v[0]
+                elif operation =='last':
+                    return v[-1]
+                elif operation == 'max':
+                    return np.max(v)
+                elif operation == 'min':
+                    return np.min(v)
+    
+            def find_last_depth(obj,operation):
+                for k,v in obj.items():
+                    if isinstance(v,dict):
+                        find_last_depth(v,operation)
+                    else:
+                        if isinstance(operation,dict) and k in operation:
+                            obj[k] = do_operation(v,operation[k])
+                        elif isinstance(operation,str):
+                            obj[k] = do_operation(v,operation)
+                return obj
+            
+            return find_last_depth(groupby_dict,operation) 
+            
+
+    @staticmethod
+    def Barplot(x: Union[np.ndarray,pd.DataFrame,pd.Series,list,str],
+                y: Union[np.ndarray, pd.DataFrame, pd.Series,list, str],
+                colorby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
+                separateby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
+                hue: Union[np.ndarray,pd.DataFrame,pd.Series,list,str] = None,
                 data: Optional[pd.DataFrame] = None,
-                hue: Optional[str] = None,
+                groupby_operation:Union[str,dict]='sum',
                 title: str = None,
                 xlabel: str = None,
                 ylabel: str = None,
                 ax = None, **figkwargs) -> None:
         
-        if isinstance(x,(pd.DataFrame,pd.Series)):
-            x = x.tolist()
-        elif isinstance(x, str):
-            x = data.loc[:, x].tolist()
-        #make sure x is all strings
-        if not isinstance(x[0],str):
-            x = [str(i) for i in x]
-        x = list(set(x))
-        x_pos = np.arange(len(x))
-        if isinstance(y, (pd.DataFrame, pd.Series)):
-            y = y.values
-        elif isinstance(y, str):
-            y = data.loc[:, y].values
-        if isinstance(colorby,(pd.DataFrame,pd.Series)):
-            colorby = colorby.values
-        elif isinstance(colorby,str):
-            colorby = data.loc[:,colorby].values
-        if isinstance(separateby,(pd.DataFrame,pd.Series)):
-            separateby = separateby.values
-        elif isinstance(separateby,str):
-            separateby = data.loc[:,separateby].values
-        if isinstance(hue,(pd.DataFrame,pd.Series)):
-            hue = hue.values
-        elif isinstance(hue,str):
-            hue = data.loc[:,hue].values
+        x = simple_plots.check_data_types(x,data=data,must_be='str')
+        y = simple_plots.check_data_types(y,data=data)
+        colorby = simple_plots.check_data_types(colorby,data=data)
+        separateby = simple_plots.check_data_types(separateby,data=data,must_be='str')
+        hue = simple_plots.check_data_types(hue,data = data,must_be='str')
+        
+        if separateby is None:
+            separateby = [None for i in range(len(x))]
+        if colorby is None:
+            colorby = [0 for i in range(len(x))]
+        if hue is None:
+            hue = [None for i in range(len(x))]
+            
+        #you want to groupby x in case x is not unique.
+        to_plot_dictionary = simple_plots.Groupby.groupby(separateby,x,hue,y=y,colorby=colorby)
+        to_plot_dictionary = simple_plots.Groupby.groupby_operation(to_plot_dictionary,
+                                                                    operation=groupby_operation)
+        
+        all_bars = list(set(product(separateby,x,hue))) # all the bars used in this work
+        def getFromDict(dictionary,mapList):
+            #convenience function where you get the values from dictionary by passing a list of keys.
+            return reduce(operator.getitem, mapList,dictionary)
+        
+        all_values = []
+        for keys in all_bars:
+            all_values.append(list(getFromDict(to_plot_dictionary,keys).values()))
+        all_values = np.array(all_values) # where each column correspond to the all_to_plot
+        all_bars = np.array(all_bars) #all bars corresponds to separateby, x, hue
+        separateby = all_bars[:,0]
+        if all(item is None for item in separateby):
+            separateby = None
+        x = all_bars[:,1]
+        hue = all_bars[:,2]
+        if all(item is None for item in hue):
+            hue = None
+        
+        y = all_values[:,0]
+        if isinstance(y[0],str):
+            y = np.asarray([np.float64(i) for i in y])
+        colorby = all_values[:,1]
+        if all(item==0 for item in colorby):
+            colorby = None
+        # for visualisation you can plot the bar plot separated by 3 values.
+        # between unique x, separateby and hue values.
+        # you can plot on the y axis and color the bars
+        
+        x_pos = len(np.unique(x))
+        x_pos = np.arange(1,x_pos+1) # position on the x axis.
+
         if 'yscalelog' not in figkwargs:
             figkwargs['yscalelog'] = False
         if 'horizontal' not in figkwargs:
@@ -116,10 +307,13 @@ class simple_plots:
                 row =1
                 column = len(uniq_separateby)
                 fig,axes = plt.subplots(row,column,sharex=True,sharey=True,figsize=figkwargs['figsize'])
-                if len(axes) > 1:
-                    axes = axes.flatten()
-                else:
+                if isinstance(axes,plt.Axes):
                     axes = [axes]
+                else:
+                    if len(axes) > 1:
+                        axes = axes.flatten()
+                    else:
+                        axes = [axes]
         else:
             row = 1
             column = 1
@@ -132,7 +326,7 @@ class simple_plots:
             rank = colorby.argsort().argsort()
             my_cmap = ListedColormap(pal)
             norm = plt.Normalize(colorby.min(),colorby.max())
-            sm = plt.cm.ScalrMappable(cmap=my_cmap,norm=norm)
+            sm = plt.cm.ScalarMappable(cmap=my_cmap,norm=norm)
             sm.set_array([])
             color = np.array(pal)[rank]
         else:
@@ -151,9 +345,6 @@ class simple_plots:
                         shift = (label_idx+1) - int(np.floor(mean_pos))
                 else:
                     shift = (label_idx+1) - int(np.floor(mean_pos))
-                print(x_pos)
-                print(shift*(barwidth/len(unique_hue)))
-                print(y)
                 ax.bar(x_pos+(shift*(barwidth/len(unique_hue))),
                        y,
                        barwidth,
@@ -208,7 +399,7 @@ class simple_plots:
                                              color=None)
                 else:
                     ax.bar(x_pos,y,color=color)
-                ax.set_xticks(x_pos,x)
+                ax.set_xticks(x_pos,np.unique(x))
             
             if figkwargs['horizontal'] is not None:
                 ax.hlines(figkwargs['horizontal'],0,len(y)-1)
@@ -246,7 +437,7 @@ class simple_plots:
                      rotation='vertical',
                      size='xx-large')
             fig.suptitle(
-                figkwargs['title'],
+                title,
                 size='xx-large')
         
         else:
