@@ -781,12 +781,16 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    if 'legend_loc' not in figkwargs:
-        figkwargs['legend_loc'] = 'outside'
-    if figkwargs['legend_loc'] == 'outside':
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    else:
-        ax.legend(loc='lower left')
+    
+    if 'legend' not in figkwargs:
+        figkwargs['legend']=True
+    if figkwargs['legend']:
+        if 'legend_loc' not in figkwargs:
+            figkwargs['legend_loc'] = 'outside'
+        if figkwargs['legend_loc'] == 'outside':
+            ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        else:
+            ax.legend(loc='lower left')
     ax.set_title(title)
     return ax
 
