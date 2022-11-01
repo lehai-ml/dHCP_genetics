@@ -58,12 +58,33 @@ class simple_plots:
     @staticmethod
     def check_data_types(x:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
                          data:Optional[pd.DataFrame]=None,
-                         must_be:Optional[str]=None):
+                         must_be:Optional[str]=None) -> np.ndarray:
+        """
+        Convenience function to check data type and assign value
+
+        Parameters
+        ----------
+        x : Union[np.ndarray,pd.DataFrame,pd.Series,list,str], optional
+            value of interest. The default is None.
+        data : Optional[pd.DataFrame], optional
+            dataframe if x is a string. The default is None.
+        must_be : Optional[str], optional
+            {str,int}. if it must be a certain type then return a list of that type
+            The default is None.
+
+        Returns
+        -------
+        x: np.ndarray
+            An array.
+
+        """
+        string_name = None
         if x is None:
-            return None
+            return x,string_name
         if isinstance(x,(pd.DataFrame,pd.Series)):
             x = x.values
         elif isinstance(x, str):
+            string_name = x
             x = data.loc[:, x].values
         #make sure x is all strings
         elif isinstance(x, list):
@@ -74,7 +95,7 @@ class simple_plots:
         elif must_be == 'int':
             if not isinstance(x[0],int):
                 x = np.array([int(i) for i in x])
-        return x
+        return x,string_name
     
     class Groupby:
         
@@ -167,6 +188,7 @@ class simple_plots:
             Perform groupby operation on the output of groupby function.
             Performs recursive opening of the nested dictionary to perform some
             operations on the last layer of the dictionary
+            
             Parameters
             ----------
             groupby_dict : dict
@@ -204,6 +226,8 @@ class simple_plots:
                     return np.min(v)
     
             def find_last_depth(obj,operation):
+                #convenience function to recursively perform some function on
+                # the deepest layer of a nested function
                 for k,v in obj.items():
                     if isinstance(v,dict):
                         find_last_depth(v,operation)
@@ -215,27 +239,126 @@ class simple_plots:
                 return obj
             
             return find_last_depth(groupby_dict,operation) 
-            
-
+    
+    @staticmethod
+    def sort_array(current_array,order=None,ascending=True,specific_order=None):
+        if specific_order is None:
+            new_array = np.sort(current_array,order=order)
+            if not ascending:
+                new_array = new_array[::-1]
+        else:
+            new_idx = []
+            for key,values in specific_order.items():
+                for value in values:
+                    new_idx.append([idx for idx,i in enumerate(current_array[key]) if i==value])
+            new_array = current_array[[i for sublist in new_idx for i in sublist]]
+        return new_array
+        
     @staticmethod
     def Barplot(x: Union[np.ndarray,pd.DataFrame,pd.Series,list,str],
                 y: Union[np.ndarray, pd.DataFrame, pd.Series,list, str],
                 colorby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
                 separateby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
                 hue: Union[np.ndarray,pd.DataFrame,pd.Series,list,str] = None,
+                order:Optional[Union[list,dict,str]]='y',
                 data: Optional[pd.DataFrame] = None,
                 groupby_operation:Union[str,dict]='sum',
-                title: str = None,
-                xlabel: str = None,
-                ylabel: str = None,
-                ax = None, **figkwargs) -> None:
+                title:Optional[str] = None,
+                fig:Optional[plt.Figure] = None,
+                ax:Optional[plt.Axes] = None, **figkwargs) -> Optional[plt.Axes]:
+        """
+        Create bar plot.
         
-        x = simple_plots.check_data_types(x,data=data,must_be='str')
-        y = simple_plots.check_data_types(y,data=data)
-        colorby = simple_plots.check_data_types(colorby,data=data)
-        separateby = simple_plots.check_data_types(separateby,data=data,must_be='str')
-        hue = simple_plots.check_data_types(hue,data = data,must_be='str')
+        Parameters
+        ----------
+        x : Union[np.ndarray,pd.DataFrame,pd.Series,list,str]
+            X-axis. Must be categorical data
+        y : Union[np.ndarray, pd.DataFrame, pd.Series,list, str]
+            Y-axis. Must be continuous data
+        colorby : Union[np.ndarray,pd.DataFrame,pd.Series,list,str], optional
+            Continuous data that can be used to color each bar. The default is 
+            None.
+        separateby : Union[np.ndarray,pd.DataFrame,pd.Series,list,str], optional
+            Categorical data that can be used to separate different plots. The 
+            default is None.
+        hue : Union[np.ndarray,pd.DataFrame,pd.Series,list,str], optional
+            Categorical data that can be used to separate different bars in the
+            same plot. The default is None.
+            If both colorby and hue is defined, then colorby will be ignored.
+        order: Union[list,dict,str]:
+            Define the order of the bars.
+            Default is 'y': This will oder the bar in the ascending order of y
+            other option include ['seperateby','x','hue','y','colorby'] where 
+            separateby, x and hue can be ordered alphabetically, and y, colorby
+            ordered numerically. Set order_reversed to True or False to ascending
+            or descending.
+            if specific order is required. Provide a dictionary
+            e.g. {'x':['a','b','c','d']} and the bars will order by the list.
+        data : Optional[pd.DataFrame], optional
+            DataFrame from which to get the values from . The default is None.
+        groupby_operation : Union[str,dict], optional
+            perform function to 'y' and 'colorby'
+            Possible operations include
+            {sum,mean,max,min,first,last}
+            if same groupby operation on y and colorby, use string.
+            if different groupby operations on y and colorby, use dictionary to
+            define .E.g. {'y':'sum','colorby':'max'} will perform sum on 'y' 
+            values but color each bar by the max colorby value. The default is 
+            'sum'.
+        title : str, optional
+            Title of the whole plot. The default is None.
+        xlabel : str, optional
+            Label on the x-axis. The default is None.
+        ylabel : str, optional
+            Label on the y-axis. The default is None.
+        fig: Optional[plt.Figure],optional
+            Can use fig defined by the user. Needed if providing ax and requires
+            colorbar
+        ax : Optional[plt.Axes], optional
+            Can use ax defined by the user. The default is None.
+        **figkwargs : dict
+            yscalelog:bool: if True, y-axis becomes log10scale, default False
+            alpha: float: set the transparency of the bars. Default 0.5
+            hline:float: if float defined, then plot a hline line on 
+                                y-axis.
+            hline_label: label of hline
+            rotation_x:int,float: degree of rotation on the x-ticks
+            colorbar_axes:List[float]: if multiple subplots, then define the 
+            colorbar position. The list define the co-ordinate of the lower left
+                corner of the color bar. The last two values defines the width 
+                and height of the bar. default is [0.85, 0.15, 0.01, 0.7]
+            colorbar_label:str: label on the colorbar.
+            cmap:str to color the bars if used colorby. See sns cmap for options. 
+                Default is 'Greens'
+            cmap_reversed: to reverse the cmap. Default False
+            xlabel_pos: tuple(float): If multiple subplots, the define position
+            of the x-label. Default (.48,.01)
+            ylabel_pos:tuple(float): If multiple subplots, the define position
+            of the x-label. Default (.1,.5)
+            figsize:tuple(float or int): define fig size.
+            barwidth:float: Define bar width. Default 0.35.
+
+        Raises
+        ------
+        AttributeError
+            colorbar_label requires colorby.
+
+        Returns
+        -------
+        fig
+           return fig ploted 
+
+        """
+        x,xlabel = simple_plots.check_data_types(x,data=data,must_be='str')
+        y,ylabel = simple_plots.check_data_types(y,data=data)
+        colorby,colorbar_label = simple_plots.check_data_types(colorby,data=data)
+        separateby,plot_label = simple_plots.check_data_types(separateby,data=data,must_be='str')
+        hue,legend_label = simple_plots.check_data_types(hue,data = data,must_be='str')
         
+        if (hue is not None) and (colorby is not None):
+            #if both hue and colorby is present, show only hue
+            colorby = None
+            colorbar_label = None
         if separateby is None:
             separateby = [None for i in range(len(x))]
         if colorby is None:
@@ -243,52 +366,97 @@ class simple_plots:
         if hue is None:
             hue = [None for i in range(len(x))]
             
+            
         #you want to groupby x in case x is not unique.
         to_plot_dictionary = simple_plots.Groupby.groupby(separateby,x,hue,y=y,colorby=colorby)
         to_plot_dictionary = simple_plots.Groupby.groupby_operation(to_plot_dictionary,
                                                                     operation=groupby_operation)
         
-        all_bars = list(set(product(separateby,x,hue))) # all the bars used in this work
+        all_bars = list(set(product(separateby,x,hue))) # all the bars combinations
         def getFromDict(dictionary,mapList):
             #convenience function where you get the values from dictionary by passing a list of keys.
             return reduce(operator.getitem, mapList,dictionary)
+        def get_unique(x:np.ndarray):
+            #conveninece function to return unique values but in preserved order
+            if isinstance(x,list):
+                new_x = np.ndarray(x)
+            else:
+                new_x = x.copy()
+            _,idx = np.unique(new_x,return_index=True)
+            return new_x[np.sort(idx)]
         
         all_values = []
-        for keys in all_bars:
-            all_values.append(list(getFromDict(to_plot_dictionary,keys).values()))
-        all_values = np.array(all_values) # where each column correspond to the all_to_plot
-        all_bars = np.array(all_bars) #all bars corresponds to separateby, x, hue
-        separateby = all_bars[:,0]
+        for keys in all_bars: # [dict][key1][key2][key3]
+            all_values.append(tuple(getFromDict(to_plot_dictionary,keys).values()))
+        all_bars_vals = np.array([bar+val for bar,val in zip(all_bars,all_values)],
+                                 dtype=[('separateby','O'),
+                                        ('x','O'),
+                                        ('hue','O'),
+                                        ('y',float),
+                                        ('colorby',float)])
+        if order is not None:
+            if 'order_reversed' not in figkwargs:
+                figkwargs['order_reversed'] = False
+            if isinstance(order,dict):
+                all_bars_vals = simple_plots.sort_array(all_bars_vals,
+                                                        specific_order=order)
+            else:
+                all_bars_vals = simple_plots.sort_array(all_bars_vals,
+                                                       order=order,
+                                                       ascending=figkwargs['order_reversed'])
+        
+        separateby = all_bars_vals['separateby']
         if all(item is None for item in separateby):
             separateby = None
-        x = all_bars[:,1]
-        hue = all_bars[:,2]
+        x = all_bars_vals['x']
+        hue = all_bars_vals['hue']
         if all(item is None for item in hue):
             hue = None
-        
-        y = all_values[:,0]
-        if isinstance(y[0],str):
-            y = np.asarray([np.float64(i) for i in y])
-        colorby = all_values[:,1]
+        y = all_bars_vals['y']
+        colorby = all_bars_vals['colorby']
         if all(item==0 for item in colorby):
             colorby = None
+        #Here you have two np.arrays: all_bars = nx3 shape where 
+        #column1=separateby column2=x column3= hue
+        #all_values = nx2 column1 = y, column2 = colorby
+        
         # for visualisation you can plot the bar plot separated by 3 values.
         # between unique x, separateby and hue values.
         # you can plot on the y axis and color the bars
         
         x_pos = len(np.unique(x))
         x_pos = np.arange(1,x_pos+1) # position on the x axis.
-
+        
+        if 'xlabel' not in figkwargs:
+            figkwargs['xlabel'] = xlabel
+        if 'ylabel' not in figkwargs:
+            figkwargs['ylabel'] = ylabel
         if 'yscalelog' not in figkwargs:
             figkwargs['yscalelog'] = False
-        if 'horizontal' not in figkwargs:
-            figkwargs['horizontal'] = None
+        if 'alpha' not in figkwargs:
+            figkwargs['alpha'] = 1
+        if 'hline' not in figkwargs:
+            figkwargs['hline'] = None
+        if 'hline_label' not in figkwargs: 
+            figkwargs['hline_label'] = None
         if 'rotation_x' not in figkwargs:
             figkwargs['rotation_x'] = 0
         if 'colorbar_axes' not in figkwargs:
-            figkwargs['colorbar_axes'] = [0.85, 0.15, 0.01, 0.7]
+            figkwargs['colorbar_axes'] = [0.95, 0.15, 0.01, 0.7]
         if 'colorbar_label' not in figkwargs:
-            figkwargs['colorbar_label'] = None
+            figkwargs['colorbar_label'] = colorbar_label
+        if 'cmap' not in figkwargs:
+            figkwargs['cmap'] = 'coolwarm'
+        if 'cmap_reversed' not in figkwargs:
+            figkwargs['cmap_reversed'] = False
+        if 'legend_label' not in figkwargs:
+            figkwargs['legend_label'] = legend_label
+        if 'legend_loc' not in figkwargs:
+            figkwargs['legend_loc'] = 'outside'
+        if 'plot_label' not in figkwargs:
+            figkwargs['plot_label'] = plot_label
+        if 'plot_title_fontsize' not in figkwargs:
+            figkwargs['plot_title_fontsize'] = 10
         if 'xlabel_pos' not in figkwargs:
             figkwargs['xlabel_pos'] = (.48,.01)
         if 'ylabel_pos' not in figkwargs:
@@ -297,23 +465,23 @@ class simple_plots:
             figkwargs['figsize'] = None
         if 'barwidth' not in figkwargs:
             figkwargs['barwidth'] = 0.35
-                
+
         if separateby is not None: # plot different category into different plots. Useful when you want to show a common colorbar
-            uniq_separateby = np.unique(separateby)
+            uniq_separateby = get_unique(separateby)
             if len(uniq_separateby)>3:
                 row = int(np.ceil(len(uniq_separateby)/3))
                 column = 3
             else:
                 row =1
                 column = len(uniq_separateby)
-                fig,axes = plt.subplots(row,column,sharex=True,sharey=True,figsize=figkwargs['figsize'])
-                if isinstance(axes,plt.Axes):
-                    axes = [axes]
+            fig,axes = plt.subplots(row,column,sharex=True,sharey=True,figsize=figkwargs['figsize'])
+            if isinstance(axes,plt.Axes):
+                axes = [axes]
+            else:
+                if len(axes) > 1:
+                    axes = axes.flatten()
                 else:
-                    if len(axes) > 1:
-                        axes = axes.flatten()
-                    else:
-                        axes = [axes]
+                    axes = [axes]
         else:
             row = 1
             column = 1
@@ -322,7 +490,9 @@ class simple_plots:
             axes = [ax]
 
         if colorby is not None: # color of the bar, it will be consistent across multiple plots if seperateby is defined.
-            pal = sns.color_palette('coolwarm',len(colorby))
+            pal = sns.color_palette(figkwargs['cmap'],len(colorby))
+            if figkwargs['cmap_reversed']:
+                pal = pal[::-1]
             rank = colorby.argsort().argsort()
             my_cmap = ListedColormap(pal)
             norm = plt.Normalize(colorby.min(),colorby.max())
@@ -336,39 +506,58 @@ class simple_plots:
             plt.yscale('log')
         
         if hue is not None:
-            def plot_group_bar_chart(x_pos,y,barwidth,label_idx,label,unique_hue,ax,color=None):
+            def plot_group_bar_chart(x_pos,
+                                     y,
+                                     barwidth,
+                                     label_idx,
+                                     label,
+                                     unique_hue,
+                                     ax,
+                                     color=None,
+                                     alpha=None):
                 mean_pos = np.arange(1,len(unique_hue)+1).mean()
                 if len(unique_hue)%2==0:
-                    if (label_idx+1) < mean_pos:
-                        shift = (label_idx+1) - int(np.ceil(mean_pos))
-                    else:
-                        shift = (label_idx+1) - int(np.floor(mean_pos))
+                    shift = (label_idx+1) - int(np.ceil(mean_pos))
+                    ax.bar(x_pos+(shift*barwidth/len(unique_hue)),
+                           y,
+                           barwidth/len(unique_hue),
+                           color=color,label=label,alpha=alpha)
                 else:
                     shift = (label_idx+1) - int(np.floor(mean_pos))
-                ax.bar(x_pos+(shift*(barwidth/len(unique_hue))),
-                       y,
-                       barwidth,
-                       color=color,label=label)
+                    ax.bar(x_pos+(shift*(barwidth/len(unique_hue))),
+                           y,
+                           (barwidth/len(unique_hue)),
+                           color=color,label=label,alpha=alpha)
+            
                 return ax
-                    
+
         for idx, ax in enumerate(axes):
             if separateby is not None:
-                current_separateby_index = np.where(separateby==uniq_separateby[idx])
+                try:
+                    current_separateby_index = np.where(separateby==uniq_separateby[idx])
+                except IndexError:
+                    #this is because you have empty subplots
+                    continue
                 temp_x = x[current_separateby_index]
+                sort_indices_in_x = temp_x.argsort()
+                temp_x = temp_x[sort_indices_in_x]
                 temp_y = y[current_separateby_index]
+                temp_y = temp_y[sort_indices_in_x]
                 temp_x_pos = np.arange(len(np.unique(temp_x)))
-
                 if hue is not None:
                     temp_hue = hue[current_separateby_index]
+                    temp_hue = temp_hue[sort_indices_in_x]
                 else:
                     temp_hue = None
                 if color is not None:
                     color_separately = color[current_separateby_index]
+                    color_separately = color_separately[sort_indices_in_x]
+
                 else:
                     color_separately = None
 
                 if hue is not None:
-                    unique_hue = np.unique(hue)
+                    unique_hue = get_unique(hue)
                     for label_idx,label in enumerate(unique_hue):
                         ax = plot_group_bar_chart(temp_x_pos, 
                                              temp_y[np.where(temp_hue == label)],
@@ -377,17 +566,20 @@ class simple_plots:
                                              label, 
                                              unique_hue,
                                              ax,
-                                             color=color_separately)
+                                             color=color_separately,
+                                             alpha=figkwargs['alpha'])
                 else:
-                    ax.bar(temp_x_pos,temp_y,color=color_separately)
-                ax.set_title(f'{uniq_separateby[idx]}',fontsize=20)
-                ax.set_xticks(temp_x_pos,temp_x)
+                    ax.bar(temp_x_pos,temp_y,color=color_separately,alpha=figkwargs['alpha'])
+                if figkwargs['plot_label'] is None:
+                    figkwargs['plot_label'] = ''
+                ax.set_title(f"{figkwargs['plot_label']}|{uniq_separateby[idx]}",fontsize=figkwargs['plot_title_fontsize'])
+                ax.set_xticks(temp_x_pos,get_unique(temp_x))
                 ax.set(xlabel=None)
                 ax.set(ylabel=None)
             
             else:
                 if hue is not None:
-                    unique_hue = np.unique(hue)
+                    unique_hue = get_unique(hue)
                     for label_idx,label in enumerate(unique_hue):
                         ax = plot_group_bar_chart(x_pos, 
                                              y[np.where(hue == label)],
@@ -396,13 +588,19 @@ class simple_plots:
                                              label, 
                                              unique_hue,
                                              ax,
-                                             color=None)
+                                             color=None,
+                                             alpha=figkwargs['alpha'])
                 else:
-                    ax.bar(x_pos,y,color=color)
-                ax.set_xticks(x_pos,np.unique(x))
+                    ax.bar(x_pos,y,color=color,alpha=figkwargs['alpha'])
+                    
+                ax.set_xticks(x_pos,get_unique(x))
             
-            if figkwargs['horizontal'] is not None:
-                ax.hlines(figkwargs['horizontal'],0,len(y)-1)
+            if figkwargs['hline'] is not None:
+                ax.hlines(figkwargs['hline'],
+                          x_pos[0]-figkwargs['barwidth'],
+                          x_pos[-1]+figkwargs['barwidth'],
+                          label=figkwargs['hline_label'],
+                          color='red')
             if 'xlabel_fontdict' not in figkwargs:
                 figkwargs['xlabel_fontdict'] = 10
             
@@ -411,12 +609,21 @@ class simple_plots:
                     ax.tick_params(axis='x',
                                    rotation=figkwargs['rotation_x'],
                                    labelsize=figkwargs['xlabel_fontdict'])
+
             else:
-                
                 ax.tick_params(axis='x',
                                rotation=figkwargs['rotation_x'],
                                labelsize=figkwargs['xlabel_fontdict'])
         
+        if hue is not None or figkwargs['hline_label'] is not None:
+            if row > 1:
+                ax = axes[2]
+            else:
+                ax = axes[-1]
+            if figkwargs['legend_loc'] == 'outside':
+                ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            else:
+                ax.legend(loc='lower left')
         
         if figkwargs['colorbar_label'] is not None:
             if colorby is None:
@@ -429,10 +636,10 @@ class simple_plots:
             fig.subplots_adjust(right=0.80)
             fig.text(figkwargs['xlabel_pos'][0], 
                      figkwargs['xlabel_pos'][1], 
-                     xlabel, 
+                     figkwargs['xlabel'], 
                      ha='center', size='xx-large')
             fig.text(figkwargs['ylabel_pos'][0], figkwargs['ylabel_pos'][1],
-                     ylabel,
+                     figkwargs['ylabel'],
                      va='center',
                      rotation='vertical',
                      size='xx-large')
@@ -441,8 +648,9 @@ class simple_plots:
                 size='xx-large')
         
         else:
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel(ylabel)
+            ax.set_xlabel(figkwargs['xlabel'])
+            ax.set_ylabel(figkwargs['ylabel'])
+
         
         
         
