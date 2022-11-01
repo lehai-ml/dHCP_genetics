@@ -742,26 +742,26 @@ def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
         p_value = model.pvalues.values[1]
         
         if unique_label is None:
-            beta_label = r'$\beta$=%0.03f, pval = %0.03f' % (coefs, p_value)
+            corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
             
             if not combined:
                 ax.plot(x[:, 0], y, '.', label='target',markersize=figkwargs['markersize'])
-                ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=beta_label,linewidth=figkwargs['linewidth'])
+                ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=corr_label,linewidth=figkwargs['linewidth'])
             else:
                 ax.plot(x[:, 0], y, 'o', label='total',alpha=.01,markersize=figkwargs['markersize'])
                 handles, labels = ax.get_legend_handles_labels()
                 ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
-                    label=beta_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
+                    label=corr_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
             if not figkwargs['hide_CI']:
                 ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
                                 'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson', label=unique_label)
 
         else:
-            beta_label = r'$\beta$=%0.03f, pval = %0.03f' % (coefs, p_value)
+            corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
             ax.plot(x[:, 0], y, '.', label=unique_label,markersize=figkwargs['markersize'])
             handles, labels = ax.get_legend_handles_labels()
             ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
-                    label=beta_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
+                    label=corr_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
             if not figkwargs['hide_CI']:
                 ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
                                 'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson')
