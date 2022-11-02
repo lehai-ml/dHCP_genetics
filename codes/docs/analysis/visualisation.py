@@ -58,7 +58,7 @@ class simple_plots:
     @staticmethod
     def check_data_types(x:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
                          data:Optional[pd.DataFrame]=None,
-                         must_be:Optional[str]=None) -> np.ndarray:
+                         must_be:Optional[str]=None,string_name=None) -> np.ndarray:
         """
         Convenience function to check data type and assign value
 
@@ -78,13 +78,13 @@ class simple_plots:
             An array.
 
         """
-        string_name = None
         if x is None:
             return x,string_name
         if isinstance(x,(pd.DataFrame,pd.Series)):
             x = x.values
         elif isinstance(x, str):
-            string_name = x
+            if not isinstance(string_name,str):
+                string_name = x
             x = data.loc[:, x].values
         #make sure x is all strings
         elif isinstance(x, list):
@@ -253,7 +253,7 @@ class simple_plots:
                     new_idx.append([idx for idx,i in enumerate(current_array[key]) if i==value])
             new_array = current_array[[i for sublist in new_idx for i in sublist]]
         return new_array
-        
+    
     @staticmethod
     def Barplot(x: Union[np.ndarray,pd.DataFrame,pd.Series,list,str],
                 y: Union[np.ndarray, pd.DataFrame, pd.Series,list, str],
@@ -651,148 +651,158 @@ class simple_plots:
             ax.set_xlabel(figkwargs['xlabel'])
             ax.set_ylabel(figkwargs['ylabel'])
 
+    @staticmethod
+    def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
+                        y: Union[np.ndarray, pd.DataFrame, pd.Series, str],
+                        data: Optional[pd.DataFrame] = None,
+                        hue: Optional[str] = None,
+                        combined: Optional[bool] = False,
+                        title: Optional[str] = None,
+                        ax:Optional[plt.Axes] = None,
+                        adjust_covar:Optional[dict]=None,
+                        scaling:Optional[str] = 'both', **figkwargs) -> None:
+        """
+        Fit linear regression, where y~x. calculates the pval and beta coefficient.
         
-        
-        
-        
+        You can use it to visualise across different populations and generate separate pval and beta coeficient for each population (hue) or for all of them combined
+        Note: when you have two variables, the pearson's correlation coefficient is the same as the standardized beta coefs.
+        Parameters
+        ----------
+        x : Union[np.ndarray, pd.DataFrame, pd.Series, str]
+            value on x.
+        y : Union[np.ndarray, pd.DataFrame, pd.Series, str]
+            value on y.
+        data : Optional[pd.DataFrame], optional
+            if providing string x,y, then data will be the dataframe. The default is None.
+        hue : Optional[str], optional
+            separate data point by another value in the dataframe (e.g. cohort). It will calculate separate beta and p-value. The default is None.
+        combined : Optional[bool], optional
+            If use, calculate the total p-val and beta coefs. The default is False.
+        title : str, optional
+            Title of the graph. The default is None.
+        xlabel : str, optional
+             label on x axis. The default is None.
+        ylabel : str, optional
+            label on y axis. The default is None.
+        axes : np.array, optional
+            if provided plt.subplots. The default is None.
+        scaling : str, optional
+            whether to scale x and y. The default is 'both'.
+        **figkwargs :
+            linewdith: float
+            markersize: float
+            legend_loc {outside, inside}
+            hide_CI=False
+        Returns
+        -------
+        ax
+            The ax plot.
     
-def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
-                    y: Union[np.ndarray, pd.DataFrame, pd.Series, str],
-                    data: Optional[pd.DataFrame] = None,
-                    hue: Optional[str] = None,
-                    combined: Optional[bool] = False,
-                    title: str = None,
-                    xlabel: str = None,
-                    ylabel: str = None,
-                    ax = None,
-                    scaling:str = 'both', **figkwargs) -> None:
-    """
-    Fit linear regression, where y~x. calculates the pval and beta coefficient.
-    
-    You can use it to visualise across different populations and generate separate pval and beta coeficient for each population (hue) or for all of them combined
-    Note: when you have two variables, the pearson's correlation coefficient is the same as the standardized beta coefs.
-    Parameters
-    ----------
-    x : Union[np.ndarray, pd.DataFrame, pd.Series, str]
-        value on x.
-    y : Union[np.ndarray, pd.DataFrame, pd.Series, str]
-        value on y.
-    data : Optional[pd.DataFrame], optional
-        if providing string x,y, then data will be the dataframe. The default is None.
-    hue : Optional[str], optional
-        separate data point by another value in the dataframe (e.g. cohort). It will calculate separate beta and p-value. The default is None.
-    combined : Optional[bool], optional
-        If use, calculate the total p-val and beta coefs. The default is False.
-    title : str, optional
-        Title of the graph. The default is None.
-    xlabel : str, optional
-         label on x axis. The default is None.
-    ylabel : str, optional
-        label on y axis. The default is None.
-    axes : np.array, optional
-        if provided plt.subplots. The default is None.
-    scaling : str, optional
-        whether to scale x and y. The default is 'both'.
-    **figkwargs :
-        linewdith: float
-        markersize: float
-        legend_loc {outside, inside}
-        hide_CI=False
-    Returns
-    -------
-    ax
-        The ax plot.
-
-    """
-    if isinstance(x, (pd.DataFrame, pd.Series)):
-        x = x.values
-    elif isinstance(x, str):
-        x = data.loc[:, x].values
-    if isinstance(y, (pd.DataFrame, pd.Series)):
-        y = y.values
-    elif isinstance(y, str):
-        y = data.loc[:, y].values
-    if x.ndim == 1:
-        x = x.reshape(-1, 1)
-    if y.ndim == 1:
-        y = y.reshape(-1, 1)
-    if 'linewidth' not in figkwargs:
-        figkwargs['linewidth'] = 1.5
-    if 'markersize' not in figkwargs:
-        figkwargs['markersize'] = 1.5
-    if 'hide_CI' not in figkwargs:
-        figkwargs['hide_CI'] = False
-    
-    def plotting(x, y, unique_label=None, combined=False, scaling=scaling):
-        model, _ = data_exploration.MassUnivariate.mass_univariate(cont_independentVar_cols=x,
-                                                                   dependentVar_cols=y,
-                                                                   scaling=scaling)  # will perform standaridzation inside the function
-        if scaling == 'both':
-            x = StandardScaler().fit_transform(x)
-            y = StandardScaler().fit_transform(y)
-        elif scaling == 'x':
-            x = StandardScaler().fit_transform(x)
-        elif scaling == 'y':
-            y = StandardScaler().fit_transform(y)
-        y_pred = model.predict(sm.add_constant(x))
-        predictions = model.get_prediction()
-        df_predictions = predictions.summary_frame()
-        sorted_x = np.argsort(x[:, 0])
-        coefs = model.params.values[1]
-        p_value = model.pvalues.values[1]
-        
-        if unique_label is None:
-            corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
+        """
+        if 'xlabel' not in figkwargs:
+            figkwargs['xlabel'] = None
+        if 'ylabel' not in figkwargs:
+            figkwargs['ylabel'] = None
             
-            if not combined:
-                ax.plot(x[:, 0], y, '.', label='target',markersize=figkwargs['markersize'])
-                ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=corr_label,linewidth=figkwargs['linewidth'])
+        x,xlabel = simple_plots.check_data_types(x,data,string_name=figkwargs['xlabel'])
+        y,ylabel = simple_plots.check_data_types(y,data,string_name=figkwargs['ylabel'])
+        if adjust_covar is not None:
+            if 'x' in adjust_covar:
+                adj_x = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
+                                                                                       cont_independentVar_cols=adjust_covar['x'],
+                                                                                       dependentVar_cols=x)
+                x = adj_x.values
+                if xlabel is not None:
+                    xlabel = f'Adj. {xlabel}'
+            if 'y' in adjust_covar:
+                adj_y = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
+                                                                                       cont_independentVar_cols=adjust_covar['y'],
+                                                                                       dependentVar_cols=y)
+                y = adj_y.values
+                if ylabel is not None:
+                    ylabel = f'Adj. {ylabel}'
+
+        if x.ndim == 1:
+            x = x.reshape(-1, 1)
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+        if 'linewidth' not in figkwargs:
+            figkwargs['linewidth'] = 1.5
+        if 'markersize' not in figkwargs:
+            figkwargs['markersize'] = 1.5
+        if 'hide_CI' not in figkwargs:
+            figkwargs['hide_CI'] = False
+        
+        def plotting(x, y, unique_label=None, combined=False, scaling=scaling):
+            model, _ = data_exploration.MassUnivariate.mass_univariate(cont_independentVar_cols=x,
+                                                                       dependentVar_cols=y,
+                                                                       scaling=scaling)  # will perform standaridzation inside the function
+            if scaling == 'both':
+                x = StandardScaler().fit_transform(x)
+                y = StandardScaler().fit_transform(y)
+            elif scaling == 'x':
+                x = StandardScaler().fit_transform(x)
+            elif scaling == 'y':
+                y = StandardScaler().fit_transform(y)
+            y_pred = model.predict(sm.add_constant(x))
+            predictions = model.get_prediction()
+            df_predictions = predictions.summary_frame()
+            sorted_x = np.argsort(x[:, 0])
+            coefs = model.params.values[1]
+            p_value = model.pvalues.values[1]
+            
+            if unique_label is None:
+                corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
+                
+                if not combined:
+                    ax.plot(x[:, 0], y, '.', label='target',markersize=figkwargs['markersize'])
+                    ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=corr_label,linewidth=figkwargs['linewidth'])
+                else:
+                    ax.plot(x[:, 0], y, 'o', label='total',alpha=.01,markersize=figkwargs['markersize'])
+                    handles, labels = ax.get_legend_handles_labels()
+                    ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
+                        label=corr_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
+                if not figkwargs['hide_CI']:
+                    ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
+                                    'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson', label=unique_label)
+    
             else:
-                ax.plot(x[:, 0], y, 'o', label='total',alpha=.01,markersize=figkwargs['markersize'])
+                corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
+                ax.plot(x[:, 0], y, '.', label=unique_label,markersize=figkwargs['markersize'])
                 handles, labels = ax.get_legend_handles_labels()
                 ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
-                    label=corr_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
-            if not figkwargs['hide_CI']:
-                ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
-                                'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson', label=unique_label)
-
+                        label=corr_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
+                if not figkwargs['hide_CI']:
+                    ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
+                                    'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson')
+        if ax is None:
+            fig, ax = plt.subplots()
+        if hue is None:
+            plotting(x, y,scaling=scaling)
         else:
-            corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
-            ax.plot(x[:, 0], y, '.', label=unique_label,markersize=figkwargs['markersize'])
-            handles, labels = ax.get_legend_handles_labels()
-            ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-',
-                    label=corr_label, color=handles[len(handles)-1].get_color(),linewidth=figkwargs['linewidth'])
-            if not figkwargs['hide_CI']:
-                ax.fill_between(x[sorted_x, 0], df_predictions.loc[sorted_x, 'mean_ci_lower'], df_predictions.loc[sorted_x,
-                                'mean_ci_upper'], linestyle='--', alpha=.1, color='crimson')
-    if ax is None:
-        fig, ax = plt.subplots()
-    if hue is None:
-        plotting(x, y,scaling=scaling)
-    else:
-        data = data.reset_index(drop=True)
-        unique_hues = data[hue].unique()
-        for idx, unique_hue in enumerate(unique_hues):
-            temp_data = data[data[hue] == unique_hue].index.to_list()
-            plotting(x[temp_data], y[temp_data],
-                     unique_label=unique_hue,scaling=scaling)
-        if combined:
-            plotting(x,y,combined=True,scaling=scaling)
-
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+            data = data.reset_index(drop=True)
+            unique_hues = data[hue].unique()
+            for idx, unique_hue in enumerate(unique_hues):
+                temp_data = data[data[hue] == unique_hue].index.to_list()
+                plotting(x[temp_data], y[temp_data],
+                         unique_label=unique_hue,scaling=scaling)
+            if combined:
+                plotting(x,y,combined=True,scaling=scaling)
     
-    if 'legend' not in figkwargs:
-        figkwargs['legend']=True
-    if figkwargs['legend']:
-        if 'legend_loc' not in figkwargs:
-            figkwargs['legend_loc'] = 'outside'
-        if figkwargs['legend_loc'] == 'outside':
-            ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-        else:
-            ax.legend(loc='lower left')
-    ax.set_title(title)
-    return ax
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        
+        if 'legend' not in figkwargs:
+            figkwargs['legend']=True
+        if figkwargs['legend']:
+            if 'legend_loc' not in figkwargs:
+                figkwargs['legend_loc'] = 'outside'
+            if figkwargs['legend_loc'] == 'outside':
+                ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            else:
+                ax.legend(loc='lower left')
+        ax.set_title(title)
+        return ax
 
 # def plot_correlation(x: Union[np.ndarray,pd.DataFrame,pd.Series,str],
 #                      y: Union[np.ndarray,pd.DataFrame,pd.Series,str],
