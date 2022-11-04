@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from sklearn.preprocessing import StandardScaler, LabelBinarizer
-from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
+from sklearn.model_selection import train_test_split
 import tqdm
 # import pickle
 from statsmodels.multivariate.cancorr import CanCorr
@@ -397,7 +397,6 @@ class MassUnivariate:
         -------
         new_df : TYPE
             DESCRIPTION.
-
         """
         new_df = pd.DataFrame()
         if cont_independentVar_cols is None:
@@ -508,7 +507,7 @@ class MassUnivariate:
         return result_df
     
     @classmethod
-    def check_all_predictors_combo_linear_Reg(cls,df: Optional[pd.DataFrame],
+    def check_all_predictors_combo_linear_Reg(cls,df: Optional[pd.DataFrame] = None,
                                             cat_independentVar_cols: Optional[List[str]] = None,
                                             cont_independentVar_cols: Optional[List[str]] = None,
                                             check_cols:Optional[List[str]]=None,
@@ -518,8 +517,8 @@ class MassUnivariate:
 
         Args:
             df (Optional[pd.DataFrame]): [description]
-            cat_independentVar_cols (Optional[List[str]], optional): [description]. Defaults to None.
-            cont_independentVar_cols (Optional[List[str]], optional): [description]. Defaults to None.
+            cat_independentVar_cols (Optional[List[str]], optional): [categorical variable]. Defaults to None.
+            cont_independentVar_cols (Optional[List[str]], optional): [Continuous variables]. Defaults to None.
             dependentVar_cols (Optional[List[str]], optional): [description]. Defaults to None.
         Returns:
             [type]: [description]
@@ -529,6 +528,8 @@ class MassUnivariate:
         def print_model_results(model: sm.regression.linear_model.RegressionResultsWrapper,
                                 model_name: str,
                                 dictionary: dict = all_models) -> None:
+            #convenience function to print the model results from the sm.regression model
+            
             variables = model.params.index.to_list()
             len_variables = len(variables)-1
             coefs = model.params.to_list()
