@@ -58,7 +58,9 @@ class simple_plots:
     @staticmethod
     def check_data_types(x:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
                          data:Optional[pd.DataFrame]=None,
-                         must_be:Optional[str]=None,string_name=None) -> np.ndarray:
+                         must_be:Optional[str]=None,
+                         string_name=None,
+                         transposed=False) -> np.ndarray:
         """
         Convenience function to check data type and assign value
 
@@ -66,6 +68,9 @@ class simple_plots:
         ----------
         x : Union[np.ndarray,pd.DataFrame,pd.Series,list,str], optional
             value of interest. The default is None.
+            if providing a list, make sure it is a list of observation, not a 
+            list of columns. If that is the case, it must be transposed.
+            
         data : Optional[pd.DataFrame], optional
             dataframe if x is a string. The default is None.
         must_be : Optional[str], optional
@@ -76,7 +81,8 @@ class simple_plots:
         -------
         x: np.ndarray
             An array.
-
+            if providing a more than 1 dimension,
+            make sure the each of the column in the array is a set of number
         """
         if x is None:
             return x,string_name
@@ -87,14 +93,35 @@ class simple_plots:
                 string_name = x
             x = data.loc[:, x].values
         #make sure x is all strings
+        elif isinstance(x, np.ndarray):
+            if x.ndim > 1 and x.shape[1] > 1:
+                if not isinstance(string_name,list):
+                    if isinstance(string_name,str):
+                        string_name = [f'{string_name}_{i+1}' for i in range(x.shape[1])]
         elif isinstance(x, list):
-            x = np.array(x)
-        if must_be == 'str':
-            if not isinstance(x[0],str):
-                x = np.array([str(i) for i in x])
-        elif must_be == 'int':
-            if not isinstance(x[0],int):
-                x = np.array([int(i) for i in x])
+            if isinstance(x[0],str) and len(x) == 1:
+                x = x[0]
+                if not isinstance(string_name,str):
+                    string_name = x
+                x = data.loc[:,x].values
+            elif isinstance(x[0],str) and len(x) > 1:
+                if not isinstance(string_name,list):
+                    string_name = x # multiple columns
+                x = data[x].values # multiple columns arrays
+            elif isinstance(x[0],list) and len(x) == 1:
+                x= np.array(x[0])
+            elif isinstance(x[0],list) and len(x) > 1:
+                if isinstance(x[0][0],str):
+                    raise TypeError('do not provide list of list of strings,\
+                                    but provide list of list of float instead')
+                else:
+                    x = np.array(x) # multiple columns.
+            else:
+                x = np.array(x)
+        if must_be is not None:
+            x = x.astype(must_be)
+        if transposed:
+            x = x.T
         return x,string_name
     
     class Groupby:
@@ -652,8 +679,8 @@ class simple_plots:
             ax.set_ylabel(figkwargs['ylabel'])
 
     @staticmethod
-    def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str],
-                        y: Union[np.ndarray, pd.DataFrame, pd.Series, str],
+    def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str,list],
+                        y: Union[np.ndarray, pd.DataFrame, pd.Series, str,list],
                         data: Optional[pd.DataFrame] = None,
                         hue: Optional[str] = None,
                         combined: Optional[bool] = False,
@@ -703,9 +730,14 @@ class simple_plots:
             figkwargs['xlabel'] = None
         if 'ylabel' not in figkwargs:
             figkwargs['ylabel'] = None
-            
-        x,xlabel = simple_plots.check_data_types(x,data,string_name=figkwargs['xlabel'])
-        y,ylabel = simple_plots.check_data_types(y,data,string_name=figkwargs['ylabel'])
+        if 'transposed' not in figkwargs:
+            figkwargs['transposed'] = False
+        x,xlabel = simple_plots.check_data_types(x,
+                                                 data,
+                                                 string_name=figkwargs['xlabel'])
+        y,ylabel = simple_plots.check_data_types(y,
+                                                     data,
+                                                     string_name=figkwargs['ylabel'],transposed=figkwargs['transposed'])
         if adjust_covar is not None:
             if 'x' in adjust_covar:
                 adj_x = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
@@ -720,12 +752,22 @@ class simple_plots:
                                                                                        dependentVar_cols=y)
                 y = adj_y.values
                 if ylabel is not None:
-                    ylabel = f'Adj. {ylabel}'
+                    if len(ylabel) > 1:
+                        ylabel = [f'Adj. {i}' for i in ylabel]
+        
+        if y.ndim > 1 and y.shape[1] > 1:
+            separateby = np.array([col for col in range(y.shape[1]) for row in range(y.shape[0])])
+            x = np.concatenate([x for i in range(y.shape[1])])
+            y = np.concatenate([y[:,i] for i in range(y.shape[1])])
+            data = pd.DataFrame(np.vstack([separateby,x,y]).T)
+            data.columns = ['hue','x','y']
+            hue = 'hue'
 
         if x.ndim == 1:
             x = x.reshape(-1, 1)
         if y.ndim == 1:
             y = y.reshape(-1, 1)
+                
         if 'linewidth' not in figkwargs:
             figkwargs['linewidth'] = 1.5
         if 'markersize' not in figkwargs:
