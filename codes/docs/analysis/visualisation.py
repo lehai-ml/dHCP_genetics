@@ -56,73 +56,85 @@ import operator
 class simple_plots:
     
     @staticmethod
-    def check_data_types(x:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
-                         data:Optional[pd.DataFrame]=None,
-                         must_be:Optional[str]=None,
-                         string_name=None,
-                         transposed=False) -> np.ndarray:
+    def return_array(x:Union[np.ndarray,pd.DataFrame,pd.Series,str,List[Union[str,float,int,pd.Series,np.ndarray]]]=None,
+                     data:Optional[pd.DataFrame]=None,
+                     must_be:Optional[str]=None,
+                     variable_label:Optional[str]=None) -> np.ndarray:
         """
-        Convenience function to check data type and assign value
+        Convenience function to take in multiple data types and return numpy array
 
         Parameters
         ----------
-        x : Union[np.ndarray,pd.DataFrame,pd.Series,list,str], optional
-            value of interest. The default is None.
-            if providing a list, make sure it is a list of observation, not a 
-            list of columns. If that is the case, it must be transposed.
-            
+        x : Union[np.ndarray,pd.DataFrame,pd.Series,str,List[Union[str,float,
+            int,pd.Series,np.ndarray]]], optional
+            The variable of interest. The default is None.
         data : Optional[pd.DataFrame], optional
-            dataframe if x is a string. The default is None.
+            The pd.DataFrame if providing column names as x. The default is None.
         must_be : Optional[str], optional
-            {str,int}. if it must be a certain type then return a list of that type
-            The default is None.
+            {str,int,float}. np.ndarray.astype() will be applied The default is None.
+        variable_label : Optional[str], optional
+            DESCRIPTION. The default is None.
+
+        Raises
+        ------
+        TypeError
+            DESCRIPTION.
 
         Returns
         -------
-        x: np.ndarray
-            An array.
-            if providing a more than 1 dimension,
-            make sure the each of the column in the array is a set of number
+        x : np.ndarray
+            The returned array.
+        variable_label
+            the name of the variable x.
+        column_names
+            the column of each column in x if x is multi-dimensional.
+
         """
         if x is None:
-            return x,string_name
+            return x,None,None
+        if isinstance(x,list) and len(x) == 1:
+            x = x[0]
+        if isinstance(variable_label,list) and isinstance(variable_label[0],str):
+            variable_label = variable_label[0]
+        column_names = variable_label
         if isinstance(x,(pd.DataFrame,pd.Series)):
-            x = x.values
+            if x.ndim == 1:
+                if not isinstance(variable_label,str):
+                    if isinstance(x,pd.Series):
+                        variable_label = x.name
+                    else:
+                        variable_label = x.columns[0]
+                x = x.values #np.ndarray
+            else: # if x.ndim > 1
+                column_names = x.columns.tolist()
+                x = x.values
+                
         elif isinstance(x, str):
-            if not isinstance(string_name,str):
-                string_name = x
+            if not isinstance(variable_label,str):
+                variable_label = x
             x = data.loc[:, x].values
         #make sure x is all strings
         elif isinstance(x, np.ndarray):
-            if x.ndim > 1 and x.shape[1] > 1:
-                if not isinstance(string_name,list):
-                    if isinstance(string_name,str):
-                        string_name = [f'{string_name}_{i+1}' for i in range(x.shape[1])]
+            pass
         elif isinstance(x, list):
-            if isinstance(x[0],str) and len(x) == 1:
-                x = x[0]
-                if not isinstance(string_name,str):
-                    string_name = x
-                x = data.loc[:,x].values
-            elif isinstance(x[0],str) and len(x) > 1:
-                if not isinstance(string_name,list):
-                    string_name = x # multiple columns
+            if isinstance(x[0],str) and data is not None:
+                column_names = x            
                 x = data[x].values # multiple columns arrays
-            elif isinstance(x[0],list) and len(x) == 1:
-                x= np.array(x[0])
-            elif isinstance(x[0],list) and len(x) > 1:
-                if isinstance(x[0][0],str):
-                    raise TypeError('do not provide list of list of strings,\
-                                    but provide list of list of float instead')
-                else:
-                    x = np.array(x) # multiple columns.
-            else:
+            elif isinstance(x[0],list):
+                x = np.array(x).T
+            elif isinstance(x[0],pd.Series): 
+                column_names = [i.name for i in x]
+                x = np.array(x).T
+            elif isinstance(x[0],np.ndarray):
+                x = np.array(x).T
+                if x.ndim > 2:
+                    raise TypeError('if providing list of arrays, arrays must be 1 dimensional')
+            elif isinstance(x[0],(float,int,str)):
                 x = np.array(x)
+                
         if must_be is not None:
             x = x.astype(must_be)
-        if transposed:
-            x = x.T
-        return x,string_name
+        return x,variable_label,column_names
     
     class Groupby:
         
@@ -282,7 +294,7 @@ class simple_plots:
         return new_array
     
     @staticmethod
-    def Barplot(x: Union[np.ndarray,pd.DataFrame,pd.Series,list,str],
+    def Bar(x: Union[np.ndarray,pd.DataFrame,pd.Series,list,str],
                 y: Union[np.ndarray, pd.DataFrame, pd.Series,list, str],
                 colorby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
                 separateby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
@@ -376,11 +388,11 @@ class simple_plots:
            return fig ploted 
 
         """
-        x,xlabel = simple_plots.check_data_types(x,data=data,must_be='str')
-        y,ylabel = simple_plots.check_data_types(y,data=data)
-        colorby,colorbar_label = simple_plots.check_data_types(colorby,data=data)
-        separateby,plot_label = simple_plots.check_data_types(separateby,data=data,must_be='str')
-        hue,legend_label = simple_plots.check_data_types(hue,data = data,must_be='str')
+        x,xlabel,_ = simple_plots.return_array(x,data=data,must_be='str')
+        y,ylabel,_ = simple_plots.return_array(y,data=data)
+        colorby,colorbar_label,_ = simple_plots.return_array(colorby,data=data)
+        separateby,plot_label,_ = simple_plots.return_array(separateby,data=data,must_be='str')
+        hue,legend_label,_ = simple_plots.return_array(hue,data = data,must_be='str')
         
         if (hue is not None) and (colorby is not None):
             #if both hue and colorby is present, show only hue
@@ -730,14 +742,13 @@ class simple_plots:
             figkwargs['xlabel'] = None
         if 'ylabel' not in figkwargs:
             figkwargs['ylabel'] = None
-        if 'transposed' not in figkwargs:
-            figkwargs['transposed'] = False
-        x,xlabel = simple_plots.check_data_types(x,
-                                                 data,
-                                                 string_name=figkwargs['xlabel'])
-        y,ylabel = simple_plots.check_data_types(y,
-                                                     data,
-                                                     string_name=figkwargs['ylabel'],transposed=figkwargs['transposed'])
+        
+        x,xlabel,_ = simple_plots.return_array(x,
+                                               data,
+                                               variable_label=figkwargs['xlabel'])
+        y,ylabel,column_names = simple_plots.return_array(y,
+                                                          data,
+                                                          variable_label=figkwargs['ylabel'])
         if adjust_covar is not None:
             if 'x' in adjust_covar:
                 adj_x = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
@@ -756,10 +767,14 @@ class simple_plots:
                         ylabel = [f'Adj. {i}' for i in ylabel]
         
         if y.ndim > 1 and y.shape[1] > 1:
-            separateby = np.array([col for col in range(y.shape[1]) for row in range(y.shape[0])])
+            if not isinstance(column_names,list):
+                column_names = [f'Hue_{col+1}' for col in range(y.shape[1])]
+            column_names = [col for col in column_names for row in range(y.shape[0])]
             x = np.concatenate([x for i in range(y.shape[1])])
             y = np.concatenate([y[:,i] for i in range(y.shape[1])])
-            data = pd.DataFrame(np.vstack([separateby,x,y]).T)
+            print(x.shape,y.shape,len(column_names))
+            data = pd.DataFrame(np.vstack([column_names,x,y]).T)
+            
             data.columns = ['hue','x','y']
             hue = 'hue'
 
