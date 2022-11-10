@@ -221,7 +221,7 @@ class Volumes:
                                                                             ['Imperial 13','Imperial 59','Imperial 29','Imperial 72'],['Imperial 14','Imperial 60','Imperial 28','Imperial 71'], # Medial and ITG
                                                                             ['Imperial 15','Imperial 61','Imperial 27','Imperial 70'],['Imperial 16','Imperial 62','Imperial 26','Imperial 69'], # Lateral Occipital Gyrus
                                                                             ['Imperial 33','Imperial 76','Imperial 35','Imperial 78'],['Imperial 32','Imperial 75','Imperial 34','Imperial 77'],# Cingulate Gyrus
-                                                                            ['Imperial 21','Imperial 64','Imperial 20','Imperial 63'], # insula
+                                                                            ['Imperial 21','Imperial 64'],['Imperial 20','Imperial 63'], # insula
                                                                             ['Imperial 23','Imperial 66'],['Imperial 22','Imperial 65'], # occipital lobe
                                                                             ['Imperial 37','Imperial 80'],['Imperial 36','Imperial 79'],# frontal lobe
                                                                             ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81'],# Parietal lobe
