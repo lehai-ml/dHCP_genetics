@@ -295,16 +295,17 @@ class simple_plots:
     
     @staticmethod
     def Bar(x: Union[np.ndarray,pd.DataFrame,pd.Series,list,str],
-                y: Union[np.ndarray, pd.DataFrame, pd.Series,list, str],
-                colorby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
-                separateby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
-                hue: Union[np.ndarray,pd.DataFrame,pd.Series,list,str] = None,
-                order:Optional[Union[list,dict,str]]='y',
-                data: Optional[pd.DataFrame] = None,
-                groupby_operation:Union[str,dict]='sum',
-                title:Optional[str] = None,
-                fig:Optional[plt.Figure] = None,
-                ax:Optional[plt.Axes] = None, **figkwargs) -> Optional[plt.Axes]:
+            y: Union[np.ndarray, pd.DataFrame, pd.Series,list, str],
+            y2: Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
+            colorby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
+            separateby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
+            hue: Union[np.ndarray,pd.DataFrame,pd.Series,list,str] = None,
+            order:Optional[Union[list,dict,str]]='y',
+            data: Optional[pd.DataFrame] = None,
+            groupby_operation:Union[str,dict]='sum',
+            title:Optional[str] = None,
+            fig:Optional[plt.Figure] = None,
+            ax:Optional[plt.Axes] = None, **figkwargs) -> Optional[plt.Axes]:
         """
         Create bar plot.
         
@@ -390,6 +391,7 @@ class simple_plots:
         """
         x,xlabel,_ = simple_plots.return_array(x,data=data,must_be='str')
         y,ylabel,_ = simple_plots.return_array(y,data=data)
+        y2,y2label,_ = simple_plots.return_array(y2,data=data)
         colorby,colorbar_label,_ = simple_plots.return_array(colorby,data=data)
         separateby,plot_label,_ = simple_plots.return_array(separateby,data=data,must_be='str')
         hue,legend_label,_ = simple_plots.return_array(hue,data = data,must_be='str')
@@ -404,10 +406,11 @@ class simple_plots:
             colorby = [0 for i in range(len(x))]
         if hue is None:
             hue = [None for i in range(len(x))]
-            
-            
+        if y2 is None:
+            y2 = [0 for i in range(len(x))]
+
         #you want to groupby x in case x is not unique.
-        to_plot_dictionary = simple_plots.Groupby.groupby(separateby,x,hue,y=y,colorby=colorby)
+        to_plot_dictionary = simple_plots.Groupby.groupby(separateby,x,hue,y=y,colorby=colorby,y2=y2)
         to_plot_dictionary = simple_plots.Groupby.groupby_operation(to_plot_dictionary,
                                                                     operation=groupby_operation)
         
@@ -432,7 +435,8 @@ class simple_plots:
                                         ('x','O'),
                                         ('hue','O'),
                                         ('y',float),
-                                        ('colorby',float)])
+                                        ('colorby',float),
+                                        ('y2',float)])
         if order is not None:
             if 'order_reversed' not in figkwargs:
                 figkwargs['order_reversed'] = False
@@ -453,8 +457,11 @@ class simple_plots:
             hue = None
         y = all_bars_vals['y']
         colorby = all_bars_vals['colorby']
+        y2= all_bars_vals['y2']
         if all(item==0 for item in colorby):
             colorby = None
+        if all(item==0 for item in y2):
+            y2 = None
         #Here you have two np.arrays: all_bars = nx3 shape where 
         #column1=separateby column2=x column3= hue
         #all_values = nx2 column1 = y, column2 = colorby
@@ -552,6 +559,7 @@ class simple_plots:
                                      label,
                                      unique_hue,
                                      ax,
+                                     y2=None,
                                      color=None,
                                      alpha=None):
                 mean_pos = np.arange(1,len(unique_hue)+1).mean()
@@ -561,6 +569,8 @@ class simple_plots:
                            y,
                            barwidth/len(unique_hue),
                            color=color,label=label,alpha=alpha)
+                    if y2 is not None:
+                        pass
                 else:
                     shift = (label_idx+1) - int(np.floor(mean_pos))
                     ax.bar(x_pos+(shift*(barwidth/len(unique_hue))),
@@ -607,6 +617,9 @@ class simple_plots:
                                              ax,
                                              color=color_separately,
                                              alpha=figkwargs['alpha'])
+                        if y2 is not None:#plot point plot on the second plot
+                            pass
+                            
                 else:
                     ax.bar(temp_x_pos,temp_y,color=color_separately,alpha=figkwargs['alpha'])
                 if figkwargs['plot_label'] is None:
@@ -750,12 +763,15 @@ class simple_plots:
                                                           data,
                                                           variable_label=figkwargs['ylabel'])
         if adjust_covar is not None:
+            
             if 'x' in adjust_covar:
                 adj_x = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
                                                                                        cont_independentVar_cols=adjust_covar['x'],
                                                                                        dependentVar_cols=x)
                 x = adj_x.values
+                
                 if xlabel is not None:
+                    
                     xlabel = f'Adj. {xlabel}'
             if 'y' in adjust_covar:
                 adj_y = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
@@ -763,8 +779,11 @@ class simple_plots:
                                                                                        dependentVar_cols=y)
                 y = adj_y.values
                 if ylabel is not None:
-                    if len(ylabel) > 1:
+                    if isinstance(ylabel,list):
                         ylabel = [f'Adj. {i}' for i in ylabel]
+                    elif isinstance(ylabel,str):
+                        ylabel = f'Adj. {ylabel}'
+                        
         
         if y.ndim > 1 and y.shape[1] > 1:
             if not isinstance(column_names,list):
@@ -772,7 +791,7 @@ class simple_plots:
             column_names = [col for col in column_names for row in range(y.shape[0])]
             x = np.concatenate([x for i in range(y.shape[1])])
             y = np.concatenate([y[:,i] for i in range(y.shape[1])])
-            print(x.shape,y.shape,len(column_names))
+            
             data = pd.DataFrame(np.vstack([column_names,x,y]).T)
             
             data.columns = ['hue','x','y']
@@ -787,6 +806,8 @@ class simple_plots:
             figkwargs['linewidth'] = 1.5
         if 'markersize' not in figkwargs:
             figkwargs['markersize'] = 1.5
+        if 'fontsize' not in figkwargs:
+            figkwargs['fontsize'] =10
         if 'hide_CI' not in figkwargs:
             figkwargs['hide_CI'] = False
         
@@ -846,8 +867,8 @@ class simple_plots:
             if combined:
                 plotting(x,y,combined=True,scaling=scaling)
     
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
+        ax.set_xlabel(xlabel,fontsize=figkwargs['fontsize'])
+        ax.set_ylabel(ylabel,fontsize=figkwargs['fontsize'])
         
         if 'legend' not in figkwargs:
             figkwargs['legend']=True
