@@ -122,9 +122,9 @@ class SNPsFunctionalAnalysis:
             if covar_file is None:
                 raise Exception("You must provide Covariates")
             if isinstance(pheno_file,str):
-                pheno_file = pd.read_table(pheno_file, sep=' ')
+                pheno_file = pd.read_table(pheno_file, sep='\t')
             if isinstance(covar_file,str):
-                covar_file = pd.read_table(covar_file, sep=' ')
+                covar_file = pd.read_table(covar_file, sep='\t')
             pheno_covar_file = pd.merge(pheno_file,
                                         covar_file,
                                         on='FID',
