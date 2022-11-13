@@ -1,17 +1,14 @@
-from matplotlib.colors import ListedColormap
-import networkx as nx
+#import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
-from scipy.stats import pearsonr
 try:
     import data_exploration
 except ModuleNotFoundError:
     from . import data_exploration
 import seaborn as sns
-from scipy.stats import ttest_ind, pearsonr
+from scipy.stats import ttest_ind
 import statsmodels.api as sm
 from typing import List, Union, Optional
 import nibabel as nib # used to do visualise brain maps
@@ -293,6 +290,24 @@ class simple_plots:
             new_array = current_array[[i for sublist in new_idx for i in sublist]]
         return new_array
     
+    @staticmethod
+    def get_color_pallete(colorby:np.ndarray=None,cmap:str=None,cmap_reversed:bool=False):
+        #convenience function to get color pallete and scalar mapable
+        # color will be consistent across multiple plots if seperateby is defined.
+        if colorby is None:
+            return None,None
+        pal = sns.color_palette(cmap,len(colorby))
+        if cmap_reversed:
+            pal = pal[::-1]
+        rank = colorby.argsort().argsort()
+        my_cmap = ListedColormap(pal)
+        norm = plt.Normalize(colorby.min(),colorby.max())
+        scalar_mappable = plt.cm.ScalarMappable(cmap=my_cmap,norm=norm)
+        scalar_mappable.set_array([])
+        color = np.array(pal)[rank]
+        return color,scalar_mappable
+    
+        
     @staticmethod
     def Bar(x: Union[np.ndarray,pd.DataFrame,pd.Series,list,str],
             y: Union[np.ndarray, pd.DataFrame, pd.Series,list, str],
@@ -704,15 +719,16 @@ class simple_plots:
             ax.set_ylabel(figkwargs['ylabel'])
 
     @staticmethod
-    def plot_Linear_Reg(x: Union[np.ndarray, pd.DataFrame, pd.Series, str,list],
-                        y: Union[np.ndarray, pd.DataFrame, pd.Series, str,list],
-                        data: Optional[pd.DataFrame] = None,
-                        hue: Optional[str] = None,
-                        combined: Optional[bool] = False,
-                        title: Optional[str] = None,
-                        ax:Optional[plt.Axes] = None,
-                        adjust_covar:Optional[dict]=None,
-                        scaling:Optional[str] = 'both', **figkwargs) -> None:
+    def Scatter(x: Union[np.ndarray, pd.DataFrame, pd.Series, str,list],
+                y: Union[np.ndarray, pd.DataFrame, pd.Series, str,list],
+                colorby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
+                hue: Union[np.ndarray,pd.DataFrame,pd.Series,list,str] = None,
+                data: Optional[pd.DataFrame] = None,
+                combined: Optional[bool] = False,
+                title: Optional[str] = None,
+                ax:Optional[plt.Axes] = None,
+                adjust_covar:Optional[dict]=None,
+                scaling:Optional[str] = 'both', **figkwargs) -> None:
         """
         Fit linear regression, where y~x. calculates the pval and beta coefficient.
         
@@ -755,6 +771,17 @@ class simple_plots:
             figkwargs['xlabel'] = None
         if 'ylabel' not in figkwargs:
             figkwargs['ylabel'] = None
+        if 'colorbar_label' not in figkwargs:
+            figkwargs['colorbar_label'] = None
+        if 'colorbar_axes' not in figkwargs:
+            figkwargs['colorbar_axes'] = [0.95, 0.15, 0.01, 0.7]
+        if 'cmap' not in figkwargs:
+            figkwargs['cmap'] = 'Blues'
+        if 'cmap_reversed' not in figkwargs:
+            figkwargs['cmap_reversed'] = False
+        if 'edgecolors' not in figkwargs:
+            figkwargs['edgecolors'] = 'face'
+        
         
         x,xlabel,_ = simple_plots.return_array(x,
                                                data,
@@ -762,8 +789,15 @@ class simple_plots:
         y,ylabel,column_names = simple_plots.return_array(y,
                                                           data,
                                                           variable_label=figkwargs['ylabel'])
+        colorby,colorbar_label,_ = simple_plots.return_array(colorby,
+                                                    data,
+                                                    variable_label=figkwargs['colorbar_label'])
+        
+        color,scalar_mappable = simple_plots.get_color_pallete(colorby,
+                                                               figkwargs['cmap'],
+                                                               figkwargs['cmap_reversed'])
+        
         if adjust_covar is not None:
-            
             if 'x' in adjust_covar:
                 adj_x = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
                                                                                        cont_independentVar_cols=adjust_covar['x'],
@@ -784,15 +818,19 @@ class simple_plots:
                     elif isinstance(ylabel,str):
                         ylabel = f'Adj. {ylabel}'
                         
-        
-        if y.ndim > 1 and y.shape[1] > 1:
+        if y.ndim > 1 and y.shape[1] > 1:#if y is defined as list, then hue is automatically applied
             if not isinstance(column_names,list):
-                column_names = [f'Hue_{col+1}' for col in range(y.shape[1])]
-            column_names = [col for col in column_names for row in range(y.shape[0])]
+                if isinstance(column_names,str):
+                    column_names = [f'{column_names}_{col+1}' for col in range(y.shape[1])]
+                else:
+                    column_names = [f'Hue_{col+1}' for col in range(y.shape[1])]
+            column_names = np.asarray([col for col in column_names for row in range(y.shape[0])]).reshape(-1,1)
             x = np.concatenate([x for i in range(y.shape[1])])
-            y = np.concatenate([y[:,i] for i in range(y.shape[1])])
-            
-            data = pd.DataFrame(np.vstack([column_names,x,y]).T)
+            y = np.concatenate([y[:,i] for i in range(y.shape[1])]).reshape(-1,1)
+            assert column_names.ndim == 2
+            assert x.ndim == 2
+            assert y.ndim == 2
+            data = pd.DataFrame(np.concatenate([column_names,x,y],axis=1))
             
             data.columns = ['hue','x','y']
             hue = 'hue'
@@ -811,7 +849,7 @@ class simple_plots:
         if 'hide_CI' not in figkwargs:
             figkwargs['hide_CI'] = False
         
-        def plotting(x, y, unique_label=None, combined=False, scaling=scaling):
+        def plotting(x, y,color=None, unique_label=None, combined=False, scaling=scaling,edgecolors=figkwargs['edgecolors']):
             model, _ = data_exploration.MassUnivariate.mass_univariate(cont_independentVar_cols=x,
                                                                        dependentVar_cols=y,
                                                                        scaling=scaling)  # will perform standaridzation inside the function
@@ -833,7 +871,7 @@ class simple_plots:
                 corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
                 
                 if not combined:
-                    ax.plot(x[:, 0], y, '.', label='target',markersize=figkwargs['markersize'])
+                    ax.scatter(x[:, 0], y,c=color,s=figkwargs['markersize'],edgecolors=edgecolors)
                     ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=corr_label,linewidth=figkwargs['linewidth'])
                 else:
                     ax.plot(x[:, 0], y, 'o', label='total',alpha=.01,markersize=figkwargs['markersize'])
@@ -856,7 +894,7 @@ class simple_plots:
         if ax is None:
             fig, ax = plt.subplots()
         if hue is None:
-            plotting(x, y,scaling=scaling)
+            plotting(x, y,color=color,scaling=scaling)
         else:
             data = data.reset_index(drop=True)
             unique_hues = data[hue].unique()
@@ -870,6 +908,13 @@ class simple_plots:
         ax.set_xlabel(xlabel,fontsize=figkwargs['fontsize'])
         ax.set_ylabel(ylabel,fontsize=figkwargs['fontsize'])
         
+        if figkwargs['colorbar_label'] is not None:
+            if color is None:
+                raise AttributeError('you have not defined colorby and you want to have a color label')
+            cbar_ax = fig.add_axes(figkwargs['colorbar_axes'])
+            cbar = ax.figure.colorbar(scalar_mappable, cax=cbar_ax)
+            cbar.set_label(figkwargs['colorbar_label'], size=12)
+        
         if 'legend' not in figkwargs:
             figkwargs['legend']=True
         if figkwargs['legend']:
@@ -878,60 +923,9 @@ class simple_plots:
             if figkwargs['legend_loc'] == 'outside':
                 ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
             else:
-                ax.legend(loc='lower left')
+                ax.legend(loc=figkwargs['legend_loc'])
         ax.set_title(title)
         return ax
-
-# def plot_correlation(x: Union[np.ndarray,pd.DataFrame,pd.Series,str],
-#                      y: Union[np.ndarray,pd.DataFrame,pd.Series,str],
-#                      data:pd.DataFrame=None,
-#                      title:str=None, 
-#                      xlabel:str=None, 
-#                      ylabel:str=None,
-#                      c:np.ndarray = None,
-#                      cmap = 'jet',
-#                      colorbar_label=None,
-#                      scaling=None,
-#                      ax=None):
-#     if isinstance(x,(pd.Series,pd.DataFrame)):
-#         x = x.values
-#     elif isinstance(x,str):
-#         if data is None:
-#             raise ValueError('dataframe is missing')
-#         x = data.loc[:,x].values
-#     if isinstance(y,(pd.Series,pd.DataFrame)):
-#         y = y.values
-#     elif isinstance(x,str):
-#         if data is None:
-#             raise ValueError('dataframe is missing')
-#         y = data.loc[:,y].values
-#     if x.ndim == 1:
-#         x = x.reshape(-1,1)
-#     if y.ndim == 1:
-#         y = y.reshape(-1,1)
-#     if scaling == 'both':
-#         x = StandardScaler().fit_transform(x)
-#         y = StandardScaler().fit_transform(y)
-#     elif scaling == 'x':
-#         x = StandardScaler().fit_transform(x)
-#     elif scaling == 'y':
-#         y = StandardScaler().fit_transform(y)
-        
-#     lin_reg = LinearRegression()
-#     lin_reg.fit(x,y)# best fit line
-    
-#     if c is not None:
-#         plt.scatter(x,y,c=c,cmap=cmap)
-#         plt.colorbar(label = colorbar_label)
-#     else:
-#         plt.scatter(x, y)
-#     plt.plot(np.asarray(x), lin_reg.predict(
-#         np.asarray(x).reshape(-1, 1)).reshape(-1),'-',color='orange')
-#     plt.xlabel(xlabel)
-#     plt.ylabel(ylabel)
-#     plt.title(title)
-    # corr, p = pearsonr(x, y)
-#     plt.figtext(0, 0, 'corr=%0.03f, pval=%0.03f' % (corr, p))
 
 
 def draw_box_plots(df,
