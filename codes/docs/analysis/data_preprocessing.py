@@ -160,6 +160,7 @@ class Volumes:
         Ventricles_labels = [f'Imperial {i}' for i in range(49,51)]
         Brainstem_labels = ['Imperial 19']
         Cerebellum_labels = ['Imperial 17','Imperial 18']
+        Cc_label = ['Imperial 48']
         
         Imperial_vols=new_df[[i for i in df.columns if 'Imperial' in i]].copy() # get the regions with Imperial in the name
         new_df['GM_sum_Imperial'] = Imperial_vols[GM_labels].sum(axis=1)
@@ -170,6 +171,7 @@ class Volumes:
     
         new_df['Ventricles_Imperial'] = Imperial_vols[Ventricles_labels].sum(axis=1)
         new_df['brainstem_Imperial'] = Imperial_vols[Brainstem_labels]
+        new_df['corpus_callosum_Imperial'] = Imperial_vols[Cc_label]
         new_df['cerebellum_Imperial'] = Imperial_vols[Cerebellum_labels].sum(axis=1)
         new_df['CSF_Imperial'] = Imperial_vols['Imperial 83']
         new_df['Intracranial_Imperial'] = new_df.loc[:,['GM_sum_Imperial','WM_sum_Imperial','Deep_Gray_Imperial','Ventricles_Imperial','brainstem_Imperial','cerebellum_Imperial','CSF_Imperial']].sum(axis=1)
@@ -233,7 +235,7 @@ class Volumes:
     
     @staticmethod
     def extract_WM_Imperial(df:Union[pd.DataFrame,List])->pd.DataFrame:
-        WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['Imperial 48'] + ['WM_sum_Imperial']
+        WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['WM_sum_Imperial']
         if isinstance(df,list):
             return [i for i in df if i in WM_labels]
         try:
@@ -263,6 +265,42 @@ class Volumes:
         except KeyError: # propably not a Mass Univariate table
             DGM_df = df.loc[:,df.columns.isin(DGM_labels)]
         return DGM_df
+    
+    @staticmethod
+    def extract_lobe(df:Union[pd.DataFrame,List],lobes:List[str]=None) -> pd.DataFrame:
+        def return_lobe(lobe:str):
+            temporal_lobes = [f'Imperial {i}' for i in [5,6,7,8,11,12,13,14,28,29,30,31,
+                                                       51,52,53,54,57,58,59,60,71,72,73,74]]
+            frontal_lobes = [f'Imperial {i}' for i in [36,37,79,80]]
+            occipital_lobes = [f'Imperial {i}' for i in [22,23,65,66]]
+            parietal_lobes = [f'Imperial {i}' for i in [38,39,81,82]]
+            if lobe=='temporal':
+                return temporal_lobes
+            if lobe=='frontal':
+                return frontal_lobes
+            if lobe=='occipital':
+                return occipital_lobes
+            if lobe=='parietal':
+                return parietal_lobes
+        lobes_to_return=[]
+        if isinstance(lobes,str):
+            if lobes == 'all':
+                lobes = ['temporal','frontal','occipital','parietal']
+            else:
+                lobes = [lobes]
+        if isinstance(lobes,list):
+            for lobe in lobes:
+                lobes_to_return+=return_lobe(lobe)
+        else:
+            raise ValueError('have not defined lobes')
+        if isinstance(df,list):
+            return [i for i in df if i in lobes_to_return]
+        try:
+            lobes_df = df[df['Connection'].isin(lobes_to_return)].sort_values(by='PRS_pval') #search WM cols
+        except KeyError: # propably not a Mass Univariate table
+            lobes_df = df.loc[:,df.columns.isin(lobes_to_return)]
+        
+        return lobes_df
     
     @staticmethod
     def Group_AAL_volumes(df:pd.DataFrame,
