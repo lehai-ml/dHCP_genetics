@@ -724,9 +724,12 @@ class simple_plots:
                 colorby:Union[np.ndarray,pd.DataFrame,pd.Series,list,str]=None,
                 hue: Union[np.ndarray,pd.DataFrame,pd.Series,list,str] = None,
                 data: Optional[pd.DataFrame] = None,
+                annotate:Optional[str] = None,
                 combined: Optional[bool] = False,
                 title: Optional[str] = None,
+                fig:Optional[plt.Figure] = None,
                 ax:Optional[plt.Axes] = None,
+                stats:bool=True,
                 adjust_covar:Optional[dict]=None,
                 scaling:Optional[str] = 'both', **figkwargs) -> None:
         """
@@ -745,7 +748,7 @@ class simple_plots:
         hue : Optional[str], optional
             separate data point by another value in the dataframe (e.g. cohort). It will calculate separate beta and p-value. The default is None.
         combined : Optional[bool], optional
-            If use, calculate the total p-val and beta coefs. The default is False.
+            If use, calculate the total (for all hues) p-val and beta coefs. The default is False.
         title : str, optional
             Title of the graph. The default is None.
         xlabel : str, optional
@@ -792,7 +795,9 @@ class simple_plots:
         colorby,colorbar_label,_ = simple_plots.return_array(colorby,
                                                     data,
                                                     variable_label=figkwargs['colorbar_label'])
-        
+        annotate,_,_ = simple_plots.return_array(annotate,
+                                                 data,
+                                                 variable_label=None)
         color,scalar_mappable = simple_plots.get_color_pallete(colorby,
                                                                figkwargs['cmap'],
                                                                figkwargs['cmap_reversed'])
@@ -827,9 +832,6 @@ class simple_plots:
             column_names = np.asarray([col for col in column_names for row in range(y.shape[0])]).reshape(-1,1)
             x = np.concatenate([x for i in range(y.shape[1])])
             y = np.concatenate([y[:,i] for i in range(y.shape[1])]).reshape(-1,1)
-            assert column_names.ndim == 2
-            assert x.ndim == 2
-            assert y.ndim == 2
             data = pd.DataFrame(np.concatenate([column_names,x,y],axis=1))
             
             data.columns = ['hue','x','y']
@@ -849,7 +851,15 @@ class simple_plots:
         if 'hide_CI' not in figkwargs:
             figkwargs['hide_CI'] = False
         
-        def plotting(x, y,color=None, unique_label=None, combined=False, scaling=scaling,edgecolors=figkwargs['edgecolors']):
+        def plotting(x,
+                     y,
+                     color=None,
+                     annotate=None, 
+                     unique_label=None, 
+                     combined=False, 
+                     scaling=scaling,
+                     edgecolors=figkwargs['edgecolors']):
+            #calculating the mass univariate
             model, _ = data_exploration.MassUnivariate.mass_univariate(cont_independentVar_cols=x,
                                                                        dependentVar_cols=y,
                                                                        scaling=scaling)  # will perform standaridzation inside the function
@@ -860,6 +870,7 @@ class simple_plots:
                 x = StandardScaler().fit_transform(x)
             elif scaling == 'y':
                 y = StandardScaler().fit_transform(y)
+            # get the beta and calculate p-value for the regression model
             y_pred = model.predict(sm.add_constant(x))
             predictions = model.get_prediction()
             df_predictions = predictions.summary_frame()
@@ -868,11 +879,16 @@ class simple_plots:
             p_value = model.pvalues.values[1]
             
             if unique_label is None:
+                #calculate the correlation label
                 corr_label = r'$r$=%0.03f, pval = %0.03f' % (coefs, p_value)
                 
                 if not combined:
                     ax.scatter(x[:, 0], y,c=color,s=figkwargs['markersize'],edgecolors=edgecolors)
-                    ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=corr_label,linewidth=figkwargs['linewidth'])
+                    if not stats:
+                        ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=corr_label,linewidth=figkwargs['linewidth'])
+                    if annotate is not None:
+                        for text_id,text in enumerate(annotate):
+                            ax.annotate(text,(x[text_id,0],y[text_id]))
                 else:
                     ax.plot(x[:, 0], y, 'o', label='total',alpha=.01,markersize=figkwargs['markersize'])
                     handles, labels = ax.get_legend_handles_labels()
@@ -894,7 +910,7 @@ class simple_plots:
         if ax is None:
             fig, ax = plt.subplots()
         if hue is None:
-            plotting(x, y,color=color,scaling=scaling)
+            plotting(x, y,color=color,annotate=annotate,scaling=scaling)
         else:
             data = data.reset_index(drop=True)
             unique_hues = data[hue].unique()
