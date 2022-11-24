@@ -884,7 +884,7 @@ class simple_plots:
                 
                 if not combined:
                     ax.scatter(x[:, 0], y,c=color,s=figkwargs['markersize'],edgecolors=edgecolors)
-                    if not stats:
+                    if stats:
                         ax.plot(x[sorted_x, 0], y_pred[sorted_x], '-', label=corr_label,linewidth=figkwargs['linewidth'])
                     if annotate is not None:
                         for text_id,text in enumerate(annotate):
