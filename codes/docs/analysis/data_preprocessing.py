@@ -268,21 +268,27 @@ class Volumes:
             return DGM_df
         
         @staticmethod
-        def extract_lobe(df:Union[pd.DataFrame,List],lobes:List[str]=None) -> pd.DataFrame:
-            def return_lobe(lobe:str):
+        def extract_lobe(df:Union[pd.DataFrame,List],lobes:List[str]=None,matter=None) -> pd.DataFrame:
+            def return_lobe(lobe:str,matter:str=None):
                 temporal_lobes = [f'Imperial {i}' for i in [5,6,7,8,11,12,13,14,28,29,30,31,
                                                            51,52,53,54,57,58,59,60,71,72,73,74]]
                 frontal_lobes = [f'Imperial {i}' for i in [36,37,79,80]]
-                occipital_lobes = [f'Imperial {i}' for i in [22,23,65,66]]
+                occipital_lobes = [f'Imperial {i}' for i in [22,23,65,66,61,62,69,70,26,27]]
                 parietal_lobes = [f'Imperial {i}' for i in [38,39,81,82]]
                 if lobe=='temporal':
-                    return temporal_lobes
-                if lobe=='frontal':
-                    return frontal_lobes
-                if lobe=='occipital':
-                    return occipital_lobes
-                if lobe=='parietal':
-                    return parietal_lobes
+                    lobe_to_return = temporal_lobes
+                elif lobe=='frontal':
+                    lobe_to_return = frontal_lobes
+                elif lobe=='occipital':
+                    lobe_to_return = occipital_lobes
+                elif lobe=='parietal':
+                    lobe_to_return = parietal_lobes
+                if matter is not None:
+                    if matter == 'wm':
+                        lobe_to_return = Volumes.Imperial.extract_WM_Imperial(lobe_to_return)
+                    elif matter == 'gm':
+                        lobe_to_return = Volumes.Imperial.extract_GM_Imperial(lobe_to_return)
+                return lobe_to_return
             lobes_to_return=[]
             if isinstance(lobes,str):
                 if lobes == 'all':
@@ -291,7 +297,7 @@ class Volumes:
                     lobes = [lobes]
             if isinstance(lobes,list):
                 for lobe in lobes:
-                    lobes_to_return+=return_lobe(lobe)
+                    lobes_to_return+=return_lobe(lobe,matter)
             else:
                 raise ValueError('have not defined lobes')
             if isinstance(df,list):
