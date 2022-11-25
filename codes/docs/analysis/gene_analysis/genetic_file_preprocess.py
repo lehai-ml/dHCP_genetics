@@ -64,10 +64,8 @@ class Cohort:
                     self.diffusion_df = df[(df['termness'] == termness) & (
                         ~df[['GA_diff',f'{self.cohort_name}_Anc_PC1']].isna().any(axis=1))]
                     if remove_duplicates:
-                        old_data = self.diffusion_df.shape[0]
                         self.diffusion_df = self.diffusion_df.sort_values(by='Session',
                                                       ascending=True).drop_duplicates(subset='ID',keep='last')
-                        new_data = self.diffusion_df.shape[0]
                         
                 if data=='volumetric':
                     self.volumetric_df = df[(df['termness'] == termness) & (
