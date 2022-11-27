@@ -804,17 +804,29 @@ class simple_plots:
         
         if adjust_covar is not None:
             if 'x' in adjust_covar:
+                cat_independentVar_cols = [independentVar for independentVar in adjust_covar['x'] if data[independentVar].dtype == 'object']
+                cont_independentVar_cols = [independentVar for independentVar in adjust_covar['x'] if data[independentVar].dtype != 'object']
+                if len(cat_independentVar_cols) == 0:
+                    cat_independentVar_cols = None
+                if len(cont_independentVar_cols) == 0:
+                    cont_independentVar_cols = None
                 adj_x = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
-                                                                                       cont_independentVar_cols=adjust_covar['x'],
+                                                                                       cat_independentVar_cols=cat_independentVar_cols,
+                                                                                       cont_independentVar_cols=cont_independentVar_cols,
                                                                                        dependentVar_cols=x)
                 x = adj_x.values
-                
                 if xlabel is not None:
-                    
                     xlabel = f'Adj. {xlabel}'
             if 'y' in adjust_covar:
+                cat_independentVar_cols = [independentVar for independentVar in adjust_covar['y'] if data[independentVar].dtype == 'object']
+                cont_independentVar_cols = [independentVar for independentVar in adjust_covar['y'] if data[independentVar].dtype != 'object']
+                if len(cat_independentVar_cols) == 0:
+                    cat_independentVar_cols = None
+                if len(cont_independentVar_cols) == 0:
+                    cont_independentVar_cols = None
                 adj_y = data_exploration.MassUnivariate.adjust_covariates_with_lin_reg(df=data,
-                                                                                       cont_independentVar_cols=adjust_covar['y'],
+                                                                                       cat_independentVar_cols=cat_independentVar_cols,
+                                                                                       cont_independentVar_cols=cont_independentVar_cols,
                                                                                        dependentVar_cols=y)
                 y = adj_y.values
                 if ylabel is not None:
