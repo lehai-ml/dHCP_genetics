@@ -52,35 +52,18 @@ class Cohort:
                     ['GA', 'PMA']])
             ]
     
-    def extract_neonates_data(self,termness='term',
-                              get_data:Optional[List[str]]=['volumetric'],
+    def extract_neonates_data(self,columns:list,criteria:dict=None,
                               remove_duplicates=True):
-        df = self.cohort_data
-        if isinstance(get_data,str):
-            get_data = [get_data]
-        if isinstance(get_data,list):
-            for data in get_data:
-                if data=='diffusion':
-                    self.diffusion_df = df[(df['termness'] == termness) & (
-                        ~df[['GA_diff',f'{self.cohort_name}_Anc_PC1']].isna().any(axis=1))]
-                    if remove_duplicates:
-                        self.diffusion_df = self.diffusion_df.sort_values(by='Session',
-                                                      ascending=True).drop_duplicates(subset='ID',keep='last')
-                        
-                if data=='volumetric':
-                    self.volumetric_df = df[(df['termness'] == termness) & (
-                        ~df[['GA_vol', f'{self.cohort_name}_Anc_PC1']].isna().any(axis=1))]
-                    if remove_duplicates:
-                        self.volumetric_df = self.volumetric_df.sort_values(by='Session',
-                                                      ascending=True).drop_duplicates(subset='ID',keep='last')
-                if data=='microstructure':
-                    self.micro_df = df[(df['termness'] == termness) & (~df[[
-                         f'{self.cohort_name}_Anc_PC1' , 'Gender', 'l94_FA', 'l94_MD', 'l94_T12',
-                        'l94_T2', 'l94_FISO']].isna().any(axis=1))]
-                    if remove_duplicates:
-                        self.micro_df = self.micro_df.sort_values(by='Session',
-                                                      ascending=True).drop_duplicates(subset='ID',keep='last')
-        
+        df = self.cohort_data.copy()
+        df = df[~df[columns+[f'{self.cohort_name}_Anc_PC1']].isna().any(axis=1)]
+        if isinstance(criteria,dict):
+            for col in columns:
+                if col in criteria:
+                    df = df[df[col]==criteria[col]]            
+        if remove_duplicates:
+            df = df.sort_values(by='Session',ascending=True).drop_duplicates(subset='ID',keep='first')
+        return df
+    
     @staticmethod
     def combine_imaging_genetic_data(imaging_df,genetic_df,how='inner'):
 
