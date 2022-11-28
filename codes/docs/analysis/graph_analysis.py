@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 from scipy.linalg import lstsq as scipy_lstsq
 import tqdm
-from typing import List
+from typing import List,Union,Optional
+from collections import defaultdict
 
 class Graph_analysis:
     
@@ -114,6 +115,12 @@ class Graph_analysis:
         return comps, comp_sizes, max_edge_size
     
     @staticmethod
+    def get_degree_und(X:np.ndarray):
+        #X is binarised matrix
+        node_degree = np.sum(X,axis=0)
+        return node_degree
+    
+    @staticmethod
     def lower_triangle(matrix):
         """
         Works in Diffusion dataset. Organizes a square unidirectional matrix into 1D vector. Because the matrix 
@@ -136,7 +143,7 @@ class Graph_analysis:
         return matrix[mask]
     
     @staticmethod
-    def reverse_lower_triangle(matrix,side_of_the_square=90):
+    def reverse_lower_triangle(matrix,side_of_the_square=None):
         """
         Organise a 1D matrix to a square 2D undirected matrix.
         Args:
@@ -145,6 +152,9 @@ class Graph_analysis:
         Returns:
             matrix: 2D matrix
         """
+        if side_of_the_square is None:
+            side_of_the_square = int(np.roots([1,-1,-(len(matrix)*2)])[0])
+            
         def fill_in_matrix(return_matrix,matrix,side_of_the_square):
             counter=0
             for i in range(1,side_of_the_square):
@@ -288,69 +298,105 @@ class Graph_analysis:
             
 class NBS:
     
-    @staticmethod
-    def calculate_t_matrix(X:np.ndarray,y:np.ndarray):
-        """
-        Calculate t-value by performing mass linear regression.
-        Utilises scipy.linalg.lstsq lapack driver = 'gelsy'
-        Each linear regression model has a bias term, but t-value of only the predictor is outputed.
-        Parameters
-        ----------
-        X : np.ndarray
-            Matrix of shape (n,K) where n is the number of observation and K is the number of connections.
-        y : np.ndarray
-            The target continuous variable, which will be shuffled in permutation testing.
-        Returns
-        -------
-        t_matrix : np.ndarray
-            Assuming the undirected graph, this is a (K,) vector where t_matrix[0] correspond to the t-value of the K[0] in linear regression model with a bias term.
-        """
-        const = np.ones((X.shape[0],1))
-        t_matrix = np.empty(X.shape[1])
-        for dependentVar in range(X.shape[1]):
-            X_new = np.append(const,X[:,dependentVar:dependentVar+1],axis=1)
-            beta, _, _, _ = scipy_lstsq(X_new,y,lapack_driver='gelsy')
-            y_pred = np.matmul(X_new,beta)
-            MSE = (np.sum((y-y_pred)**2))/(len(X)-2)
-            var_b = MSE*(np.linalg.inv(np.dot(X_new.T,X_new)).diagonal())
-            sd_b = np.sqrt(var_b)
-            ts_b = beta/sd_b
-            t_matrix[dependentVar] = ts_b[1]
-        return t_matrix
+    class T_matrix:
+    
+        @staticmethod
+        def calculate_t_matrix(X:np.ndarray,y:np.ndarray):
+            """
+            Calculate t-value by performing mass linear regression.
+            Utilises scipy.linalg.lstsq lapack driver = 'gelsy'
+            Each linear regression model has a bias term, but t-value of only the predictor is outputed.
+            Parameters
+            ----------
+            X : np.ndarray
+                Matrix of shape (n,K) where n is the number of observation and K is the number of connections.
+            y : np.ndarray
+                The target continuous variable, which will be shuffled in permutation testing.
+            Returns
+            -------
+            t_matrix : np.ndarray
+                Assuming the undirected graph, this is a (K,) vector where t_matrix[0] correspond to the t-value of the K[0] in linear regression model with a bias term.
+            """
+            const = np.ones((X.shape[0],1))
+            t_matrix = np.empty(X.shape[1])
+            for dependentVar in range(X.shape[1]):
+                X_new = np.append(const,X[:,dependentVar:dependentVar+1],axis=1)
+                beta, _, _, _ = scipy_lstsq(X_new,y,lapack_driver='gelsy')
+                y_pred = np.matmul(X_new,beta)
+                MSE = (np.sum((y-y_pred)**2))/(len(X)-2)
+                var_b = MSE*(np.linalg.inv(np.dot(X_new.T,X_new)).diagonal())
+                sd_b = np.sqrt(var_b)
+                ts_b = beta/sd_b
+                t_matrix[dependentVar] = ts_b[1]
+            return t_matrix
+        
+        @staticmethod
+        def get_permutation(X:np.ndarray,y:np.ndarray, perm:int=1000)->np.ndarray:
+            """
+            Parameters
+            ----------
+            X : np.ndarray
+                Matrix of shape (n,K) where n is the number of observation and K is the number of connections.
+            y : np.ndarray
+                The target continuous variable, which will be shuffled in permutation testing
+            perm : int, optional
+                number of permutation. The default is 1000. uses np.random.Generator.permutation (without replacement)
+    
+            Returns
+            -------
+            all_t_perm : np.ndarray
+                A t-value matrix of shape (perm,K) where perm is the number of permutation performed, and K is the number of connection examined.
+    
+            """
+            rng = np.random.default_rng(42)
+            all_t_perm = np.empty((perm,X.shape[1]))
+            
+            for perm_n in tqdm.tqdm(range(perm)):
+                y_perm = rng.permutation(y)
+                t_matrix_perm = NBS.T_matrix.calculate_t_matrix(X, y_perm)
+                all_t_perm[perm_n,:] = t_matrix_perm
+                    
+            return all_t_perm
+    
+    class Corr_matrix:
+        @staticmethod
+        def calculate_adj_corr_matrix(X:np.ndarray,y:np.ndarray,to_permute:np.ndarray=None):
+        #calculate adjusted values for y and then perform x
+            const = np.ones((X.shape[0],1))
+            adjusted_y = np.empty(y.shape)
+            if y.ndim == 1:
+                raise ValueError('y cannot be less than 1 to calculate correlation matrix')
+            if isinstance(to_permute,np.ndarray):
+                if to_permute.ndim == 1:
+                    to_permute = to_permute.reshape(-1,1)
+                X = np.append(X,to_permute,axis=1)
+            X_new = np.append(const,X,axis=1)
+            for value in range(y.shape[1]):
+                beta, _, _, _ = scipy_lstsq(X_new,y[:,value],lapack_driver='gelsy')
+                y_pred = np.matmul(X_new,beta)
+                adjusted_y[:,value] = y[:,value] - y_pred
+            corr_matrix = np.corrcoef(adjusted_y,rowvar=False)
+            corr_matrix = Graph_analysis.lower_triangle(corr_matrix)
+            return corr_matrix
+        
+        @staticmethod
+        def get_permutation_corr_matrix(X:np.ndarray,y:np.ndarray,to_permute:np.ndarray=None,perm=1000):
+            rng = np.random.default_rng(42)
+            all_corr_perm = np.empty((perm,int((y.shape[1])*(y.shape[1]-1)/2)))
+            
+            for perm_n in tqdm.tqdm(range(perm)):
+                to_permute = rng.permutation(to_permute)
+                corr_perm = NBS.Corr_matrix.calculate_adj_corr_matrix(X, y,to_permute=to_permute)
+                all_corr_perm[perm_n,:] = corr_perm
+                    
+            return all_corr_perm
+
     
     @staticmethod
-    def get_permutation(X:np.ndarray,y:np.ndarray, perm:int=1000)->np.ndarray:
-        """
-        
-
-        Parameters
-        ----------
-        X : np.ndarray
-            Matrix of shape (n,K) where n is the number of observation and K is the number of connections.
-        y : np.ndarray
-            The target continuous variable, which will be shuffled in permutation testing
-        perm : int, optional
-            number of permutation. The default is 1000. uses np.random.Generator.permutation (without replacement)
-
-        Returns
-        -------
-        all_t_perm : np.ndarray
-            A t-value matrix of shape (perm,K) where perm is the number of permutation performed, and K is the number of connection examined.
-
-        """
-        rng = np.random.default_rng(42)
-        all_t_perm = np.empty((perm,X.shape[1]))
-        
-        for perm_n in tqdm.tqdm(range(perm)):
-            y_perm = rng.permutation(y)
-            t_matrix_perm = NBS.calculate_t_matrix(X, y_perm)
-            all_t_perm[perm_n,:] = t_matrix_perm
-                
-        return all_t_perm
-
-    
-    @staticmethod
-    def get_null_distribution(all_t_perm:np.ndarray,threshold:float,number_of_nodes:int=90):
+    def get_null_distribution(permutation_matrix:np.ndarray,
+                              threshold:float=None,
+                              number_of_nodes:int=None,
+                              metrics:Optional[Union[List[str],str]]=None):
         """
         Applying a t-value threshold to the t-value matrix derived from permutation step.
         And calculate the maximal size of the connected component.
@@ -360,27 +406,37 @@ class NBS:
         all_t_perm : np.ndarray
             A t-value matrix of shape (perm,K) where perm is the number of permutation performed, and K is the number of connection examined..
         threshold : float
-            The t-value threshold to be applied to all_t_perm.
+            The threshold to be applied to all_t_perm.
         number_of_nodes : int, optional
-            Number of nodes examined. The default is 90.
+            Number of nodes examined.
+        metrics: dict
+            {'max_edge_size','max_degree_centrality'}
 
         Returns
         -------
         null_distribution : np.ndarray
             Vector of shape (perm,), at each position is the maximal edge size for each permutation.
-
         """
-        all_t_perm = np.where(abs(all_t_perm)>threshold,1,0) #apply supra-threshold
-        null_distribution = np.empty(all_t_perm.shape[0])
-        for row in range(all_t_perm.shape[0]):
-            temp_square = Graph_analysis.reverse_lower_triangle(all_t_perm[row,:],side_of_the_square=number_of_nodes)
-            _, _, max_edge_size = Graph_analysis.get_components(temp_square)# get the component and component size
-            null_distribution[row] = max_edge_size
-        
+        permutation_matrix = np.where(abs(permutation_matrix)>threshold,1,0) #apply supra-threshold
+        null_distribution = defaultdict(np.ndarray)
+        if isinstance(metrics,list):
+            for metric in metrics:
+                null_distribution[metric] = np.empty(permutation_matrix.shape[0])
+        for row in range(permutation_matrix.shape[0]):
+            temp_square = Graph_analysis.reverse_lower_triangle(permutation_matrix[row,:],side_of_the_square=number_of_nodes)
+            if 'max_edge_size' in metrics:
+                _, _, max_edge_size = Graph_analysis.get_components(temp_square)# get the component and component size
+                null_distribution['max_edge_size'][row] = max_edge_size
+            if 'max_degree_centrality' in metrics:
+                null_distribution['max_degree_centrality'][row] = np.max(Graph_analysis.get_degree_und(temp_square)) # maximum degree centrality
+                
         return null_distribution
             
     @staticmethod
-    def get_p_val(X:np.ndarray,y:np.ndarray,threshold:float,null_distribution:np.ndarray,number_of_nodes:int=90):
+    def get_p_val(observed_matrix,
+                  threshold:float,
+                  null_distribution:dict,
+                  number_of_nodes:int=None):
         """
         Get p value for each connected component in the observed data
 
@@ -409,17 +465,32 @@ class NBS:
         sz_links : np.ndarray
             This tells me for each component in ind_sz, how many edges there is.
         """
-        observed_t_matrix = NBS.calculate_t_matrix(X, y)
-        observed_t_matrix = np.where(abs(observed_t_matrix)>threshold,1,0) #apply supra-threshold
-        observed_square = Graph_analysis.reverse_lower_triangle(observed_t_matrix,side_of_the_square=number_of_nodes)
-        comps, comp_sizes,_ = Graph_analysis.get_components(observed_square)
-        #calculate number of edges
-        ind_sz, sz_links, _ = Graph_analysis.get_edge_size(observed_square, comps, comp_sizes)
-        #calculate p_vals
-        p_vals = np.zeros((ind_sz.shape))
-        for i in range(len(ind_sz)):
-            p_vals[i] = np.size(np.where(null_distribution >= sz_links[i])) / len(null_distribution)
+        if not isinstance(observed_matrix, np.ndarray):
+            raise TypeError('matrix must be a numpy array of shape (k,)')
+        observed_matrix = np.where(abs(observed_matrix)>threshold,1,0) #apply supra-threshold
+        observed_square = Graph_analysis.reverse_lower_triangle(observed_matrix,side_of_the_square=number_of_nodes)
+        observed_metrics = defaultdict(dict)
+        for k in null_distribution:
+            if k == 'max_edge_size':
+                comps, comp_sizes,_ = Graph_analysis.get_components(observed_square)
+                #calculate number of edges
+                ind_sz, sz_links, _ = Graph_analysis.get_edge_size(observed_square, comps, comp_sizes)
+                #calculate p_vals
+                p_vals = np.zeros((ind_sz.shape))
+                for i in range(len(ind_sz)):
+                    p_vals[i] = np.size(np.where(null_distribution[k] >= sz_links[i])) / len(null_distribution[k])
+                observed_metrics[k]['p_vals'] = p_vals
+                observed_metrics[k]['comps'] = comps
+                observed_metrics[k]['ind_sz'] = ind_sz
+                observed_metrics[k]['sz_links'] = sz_links
+            if k == 'max_degree_centrality':
+                node_degree = Graph_analysis.get_degree_und(observed_square)
+                p_vals = np.zeros((node_degree.shape))
+                for i in range(len(node_degree)):
+                    p_vals[i] = np.size(np.where(null_distribution[k] >= node_degree[i])) / len(null_distribution[k])
+                observed_metrics[k]['p_vals'] = p_vals
+                observed_metrics[k]['node_degree'] = node_degree
         
-        return p_vals, comps, ind_sz, sz_links
+        return observed_metrics
 
 

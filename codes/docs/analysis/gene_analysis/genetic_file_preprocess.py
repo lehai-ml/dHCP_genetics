@@ -15,7 +15,8 @@ class Cohort:
                  PRS_file_path:str=None,
                  Ancestry_file_path:str=None,
                  imaging_df:pd.DataFrame=None):
-        """_summary_
+        """
+        Divide the full dataset into different cohorts.
 
         Args:
             cohort_name (str, optional): _description_. Defaults to None.
@@ -24,49 +25,49 @@ class Cohort:
             imaging_file_path (Optional[str,pd.DataFrame], optional): _description_. Defaults to None.
         """
         self.cohort_name = cohort_name
-        self.prs = self.preprocess_PRSice_PRS_Anc_files(PRS_file_path)
-        self.ancestry = self.preprocess_PRSice_PRS_Anc_files(Ancestry_file_path)
-        self.prs.columns = ['PRS_' + i for i in self.prs.columns if i != 'ID']
-        self.ancestry.columns = [f'{self.cohort_name}_Anc_' + i for i in self.ancestry.columns if 'PC' in i]
-        self.genetic_df = pd.concat([self.prs,self.ancestry],join='inner',axis=1)
+        self.prs = self.preprocess_PRSice_PRS_Anc_files(PRS_file_path,
+                                                        column_prefix='PRS_')
+        self.ancestry = self.preprocess_PRSice_PRS_Anc_files(Ancestry_file_path,
+                                                             column_prefix=f'{self.cohort_name}_Anc_')
+        self.genetic_df = pd.merge(self.prs,self.ancestry,on='ID',how='inner')
         self.imaging_df = imaging_df
         self.cohort_data = self.combine_imaging_genetic_data(self.imaging_df,self.genetic_df)
         self.cohort_data['termness'] = self.get_termness(self.cohort_data)
-    
+
     def append_cohort_list(self,cohort_list:pd.DataFrame)-> pd.DataFrame:
         """
         Args:
-            cohort_list (pd.DataFrame): index = IDs, cohort columns
+            cohort_list (pd.DataFrame): IDs, cohort column
         """
-        self.cohort_data = self.cohort_data.join(cohort_list)
+        self.cohort_data = pd.merge(self.cohort_data,cohort_list,on='ID',how='inner')
     
     @staticmethod
     def get_termness(df):
         return [
                 'term' if
-                (ga_struc >= 37) | (ga_micro >= 37) else 'preterm/term_at_scan' if
-                ((ga_struc < 37) & (pma_struc >= 37)) |
-                ((ga_micro < 37) & (pma_micro >= 37)) else 'preterm' if
-                (ga_struc < 37) | (ga_micro < 37) else 'not available'
-                for (ga_struc, pma_struc, ga_micro, pma_micro) in np.asarray(df[
-                    ['GA_vol', 'PMA_vol', 'GA_micro', 'PMA_micro']])
+                (ga >= 37) else 'preterm/term_at_scan' if
+                ((ga < 37) & (pma >= 37)) else 'preterm' if
+                (ga < 37) else 'not available'
+                for (ga, pma) in np.asarray(df[
+                    ['GA', 'PMA']])
             ]
     
-    def extract_neonates_data(self,termness='term'):
-        df = self.cohort_data
-        self.diffusion_df = df[(df['termness'] == termness) & (
-            ~df[['GA_diff',f'{self.cohort_name}_Anc_PC1' , 'Gender']].isna().any(axis=1))]
-        self.volumetric_df = df[(df['termness'] == termness) & (
-            ~df[['GA_vol', f'{self.cohort_name}_Anc_PC1' , 'Gender']].isna().any(axis=1))]
-        self.micro_df = df[(df['termness'] == termness) & (~df[[
-            'GA_micro', f'{self.cohort_name}_Anc_PC1' , 'Gender', 'l94_FA', 'l94_MD', 'l94_T12',
-            'l94_T2', 'l94_FISO'
-        ]].isna().any(axis=1))]
-        
-        
+    def extract_neonates_data(self,columns:list,criteria:dict=None,
+                              remove_duplicates=True):
+        df = self.cohort_data.copy()
+        df = df[~df[columns+[f'{self.cohort_name}_Anc_PC1']].isna().any(axis=1)]
+        if isinstance(criteria,dict):
+            for col in columns:
+                if col in criteria:
+                    df = df[df[col]==criteria[col]]            
+        if remove_duplicates:
+            df = df.sort_values(by='Session',ascending=True).drop_duplicates(subset='ID',keep='first')
+        return df
+    
     @staticmethod
-    def combine_imaging_genetic_data(imaging_df,genetic_df):
-        return pd.concat([imaging_df,genetic_df],join='inner',axis=1)
+    def combine_imaging_genetic_data(imaging_df,genetic_df,how='inner'):
+
+        return pd.merge(imaging_df,genetic_df,on='ID',how=how)
     
     @staticmethod
     def preprocess_PRSice_PRS_Anc_files(file_path:str,
@@ -92,37 +93,46 @@ class Cohort:
         table=table.drop('FID',axis=1)
         table=table.rename({'IID':'ID'},axis=1)
         table=table.sort_values('ID').reset_index(drop=True)
-        table['ID'] = [i.split('-')[0] for i in table['ID']]
-        table = table.set_index('ID')
+        table['ID'] = [i.split('-')[0] for i in table['ID']] # cases where the ID contains -1
+        # table = table.set_index('ID') # set the index
         if column_prefix is not None:
-            table.columns = [column_prefix+i for i in table.columns]
+            table = table.rename(columns={i:column_prefix+i for i in table.columns if i != 'ID'})
         if column_suffix is not None:
-            table.columns = [i+column_suffix for i in table.columns]
+            table = table.rename(columns = {i:i+column_suffix for i in table.columns if i !='ID'})
         return table
     
     @staticmethod
     def remove_outliers(df:pd.DataFrame,
-                        ancestry_PCs=None,
-                        by_name:Union[list,str]=None,plot=False):
+                        to_examine:List[str],
+                        by_name:Union[list,str]=None,
+                        to_annotate:Optional[str]=None,
+                        hue:Optional[str]=None,
+                        plot=False):
+        
+        if to_annotate is not None:
+            df = df.set_index(to_annotate)
+
         if not by_name:
             outliers = df.index[
-                (np.abs(df[ancestry_PCs[0]].agg(stats.zscore)) >= 3.5) |
-                (np.abs(df[ancestry_PCs[1]].agg(stats.zscore)) >= 3.5)]
-
+                (np.abs(df[to_examine[0]].agg(stats.zscore)) >= 3.5) |
+                (np.abs(df[to_examine[1]].agg(stats.zscore)) >= 3.5)]
+            
             fig, ax = plt.subplots()
-            for unique_cohort in df['cohort'].unique():
-                ax.scatter(df.loc[df['cohort'] == unique_cohort, ancestry_PCs[0]],
-                        df.loc[df['cohort'] == unique_cohort, ancestry_PCs[1]],label=unique_cohort)
-                
+            if hue is not None:
+                for unique_hue in df[hue].unique():
+                    ax.scatter(df.loc[df[hue] == unique_hue, to_examine[0]],
+                            df.loc[df[hue] == unique_hue, to_examine[1]],label=unique_hue)
+            else:
+                ax.scatter(df.loc[:,to_examine[0]],
+                           df.loc[:,to_examine[1]],label='target')
             for i, txt in enumerate(outliers):
-                ax.annotate(txt, (df.loc[outliers[i], ancestry_PCs[0]],
-                                df.loc[outliers[i], ancestry_PCs[1]]))
+                ax.annotate(txt, (df.loc[outliers[i], to_examine[0]],
+                                df.loc[outliers[i], to_examine[1]]))
             ax.legend()
             return df.drop(index=outliers), outliers
         else:
             return df.drop(index=by_name)
 
-    
     
 
 
