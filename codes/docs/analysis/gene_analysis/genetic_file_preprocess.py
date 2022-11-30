@@ -10,6 +10,7 @@ import re
 from scipy import stats
 import matplotlib.pyplot as plt
 class Cohort:
+    
     def __init__(self,
                  cohort_name:str=None,
                  PRS_file_path:str=None,
@@ -25,21 +26,19 @@ class Cohort:
             imaging_file_path (Optional[str,pd.DataFrame], optional): _description_. Defaults to None.
         """
         self.cohort_name = cohort_name
-        self.prs = self.preprocess_PRSice_PRS_Anc_files(PRS_file_path,
-                                                        column_prefix='PRS_')
         self.ancestry = self.preprocess_PRSice_PRS_Anc_files(Ancestry_file_path,
-                                                             column_prefix=f'{self.cohort_name}_Anc_')
-        self.genetic_df = pd.merge(self.prs,self.ancestry,on='ID',how='inner')
+                                                                 column_prefix=f'{self.cohort_name}_Anc_')
         self.imaging_df = imaging_df
-        self.cohort_data = self.combine_imaging_genetic_data(self.imaging_df,self.genetic_df)
+        self.cohort_data = pd.merge(self.imaging_df,self.ancestry,on='ID',how='inner')
         self.cohort_data['termness'] = self.get_termness(self.cohort_data)
 
-    def append_cohort_list(self,cohort_list:pd.DataFrame)-> pd.DataFrame:
+    @staticmethod
+    def append_cohort_list(cohort_data,cohort_list:pd.DataFrame)-> pd.DataFrame:
         """
         Args:
             cohort_list (pd.DataFrame): IDs, cohort column
         """
-        self.cohort_data = pd.merge(self.cohort_data,cohort_list,on='ID',how='inner')
+        cohort_data = pd.merge(cohort_data,cohort_list,on='ID',how='inner')
     
     @staticmethod
     def get_termness(df):
@@ -64,10 +63,6 @@ class Cohort:
             df = df.sort_values(by='Session',ascending=True).drop_duplicates(subset='ID',keep='first')
         return df
     
-    @staticmethod
-    def combine_imaging_genetic_data(imaging_df,genetic_df,how='inner'):
-
-        return pd.merge(imaging_df,genetic_df,on='ID',how=how)
     
     @staticmethod
     def preprocess_PRSice_PRS_Anc_files(file_path:str,
