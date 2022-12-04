@@ -309,6 +309,22 @@ class Volumes:
             
             return lobes_df
         
+        def get_hemisphere(df:Union[pd.DataFrame,List],side=None):
+            left = [i for i in range(1,18,2)] + [i for i in range(21,48,2)] + [i for i in range(49,62,2)] + [i for i in range(64,83,2)] + [87]
+            right = [i for i in range(1,88) if i not in left + [19,48,83,84,85]]
+            if side == 'left':
+                to_return = [f'Imperial {i}' for i in left]
+            if side == 'right':
+                to_return = [f'Imperial {i}' for i in right]
+            if isinstance(df,list):
+                return [i for i in df if i in to_return]
+            try:
+                side_df = df[df['Connection'].isin(to_return)].sort_values(by='PRS_pval') #search WM cols
+            except KeyError: # propably not a Mass Univariate table
+                side_df = df.loc[:,df.columns.isin(to_return)]
+            return side_df
+                
+        
         @staticmethod
         def get_Imperial_legends(label:dict=None,grouping:str=None):
             if not isinstance(label,dict):
