@@ -123,15 +123,6 @@ class Volumes:
                                    return_grouping_scheme:bool=False)->pd.DataFrame:
             """
             Grouping the volumes of the brain regions segmented by DrawEM (Imperial atlas).
-            The Imperial labels are as follows:
-                white_matter_labels       = 51..82              # tissues: 3
-                gray_matter_labels        = 5..16,20..39        # tissues: 2
-                deep_gray_matter_labels   = 1..4,40..47,85..87  # tissues: 5,7,9
-                lateral_ventricles_labels = 49,50
-                corpus_callosum_labels    = 48
-                inter_hemisphere_labels   = 40..47,85..87
-                brainstem_labels          = 19
-                cerebellum_labels         = 17,18
             Parameters
             ----------
             df : pd.DataFrame
@@ -154,29 +145,6 @@ class Volumes:
     
             """
             new_df = df.copy()
-            
-            WM_labels = [f'Imperial {i}' for i in range(51,83)]# + ['Imperial 48']
-            GM_labels = [f'Imperial {i}' for i in range(5,17)] + [f'Imperial {i}' for i in range(20,40)]
-            DGM_labels = [f'Imperial {i}' for i in range(1,5)] + [f'Imperial {i}' for i in range(40,48)] + [f'Imperial {i}' for i in range(85,88)]
-            Ventricles_labels = [f'Imperial {i}' for i in range(49,51)]
-            Brainstem_labels = ['Imperial 19']
-            Cerebellum_labels = ['Imperial 17','Imperial 18']
-            Cc_label = ['Imperial 48']
-            
-            Imperial_vols=new_df[[i for i in df.columns if 'Imperial' in i]].copy() # get the regions with Imperial in the name
-            new_df['GM_sum_Imperial'] = Imperial_vols[GM_labels].sum(axis=1)
-        
-            new_df['WM_sum_Imperial'] = Imperial_vols[WM_labels].sum(axis=1)
-        
-            new_df['Deep_Gray_Imperial'] = Imperial_vols[DGM_labels].sum(axis=1)
-        
-            new_df['Ventricles_Imperial'] = Imperial_vols[Ventricles_labels].sum(axis=1)
-            new_df['brainstem_Imperial'] = Imperial_vols[Brainstem_labels]
-            new_df['corpus_callosum_Imperial'] = Imperial_vols[Cc_label]
-            new_df['cerebellum_Imperial'] = Imperial_vols[Cerebellum_labels].sum(axis=1)
-            new_df['CSF_Imperial'] = Imperial_vols['Imperial 83']
-            new_df['Intracranial_Imperial'] = new_df.loc[:,['GM_sum_Imperial','WM_sum_Imperial','Deep_Gray_Imperial','Ventricles_Imperial','brainstem_Imperial','cerebellum_Imperial','CSF_Imperial']].sum(axis=1)
-            new_df['Total_Brain_Volume_Imperial'] = new_df.loc[:,['GM_sum_Imperial','WM_sum_Imperial','Deep_Gray_Imperial','brainstem_Imperial','cerebellum_Imperial']].sum(axis=1)
             if grouping is not None:
                 if grouping == 'segmented':
                     #Grey Matter
@@ -217,6 +185,7 @@ class Volumes:
                                                                                 ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81']],# parietal lobe
                                                                        operation=operation,
                                                                        remove_duplicated = remove_duplicated)
+
                 elif grouping == 'all':
                     new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 5','Imperial 51','Imperial 7','Imperial 53'],['Imperial 6','Imperial 52','Imperial 8','Imperial 54'], #Anterior Temporal lobe
                                                                                 ['Imperial 9','Imperial 55','Imperial 25','Imperial 68'],['Imperial 10','Imperial 56','Imperial 24','Imperial 67'], # Gyri parahippocampalis et ambines
@@ -231,9 +200,47 @@ class Volumes:
                                                                                 ['Imperial 42','Imperial 86'],['Imperial 43','Imperial 87']], # Thalamus
                                                                                 operation=operation,
                                                                                 remove_duplicated = remove_duplicated)
-                
             return new_df
         
+        @staticmethod
+        def get_tissue_type(df:pd.DataFrame):
+            """
+            The Imperial labels are as follows:
+                white_matter_labels       = 51..82+48              # tissues: 3
+                gray_matter_labels        = 5..16,20..39        # tissues: 2
+                deep_gray_matter_labels   = 1..4,40..47,85..87  # tissues: 5,7,9
+                lateral_ventricles_labels = 49,50
+                corpus_callosum_labels    = 48
+                inter_hemisphere_labels   = 40..47,85..87
+                brainstem_labels          = 19
+                cerebellum_labels         = 17,18
+            """
+            new_df = df.copy()
+            WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['Imperial 48']
+            GM_labels = [f'Imperial {i}' for i in range(5,17)] + [f'Imperial {i}' for i in range(20,40)]
+            DGM_labels = [f'Imperial {i}' for i in range(1,5)] + [f'Imperial {i}' for i in range(40,48)] + [f'Imperial {i}' for i in range(85,88)]
+            #this deep Gray matter contains the hippocampus + amygdala (in the 9TT segmentation file, deepGM do not contain Hipp+Amygdala)
+            Ventricles_labels = [f'Imperial {i}' for i in range(49,51)]
+            Brainstem_labels = ['Imperial 19']
+            Cerebellum_labels = ['Imperial 17','Imperial 18']
+            Cc_label = ['Imperial 48']
+            
+            Imperial_vols=new_df[[i for i in df.columns if 'Imperial' in i]].copy() # get the regions with Imperial in the name
+            new_df['GM_sum_Imperial'] = Imperial_vols[GM_labels].sum(axis=1)
+        
+            new_df['WM_sum_Imperial'] = Imperial_vols[WM_labels].sum(axis=1)
+        
+            new_df['Deep_Gray_Imperial'] = Imperial_vols[DGM_labels].sum(axis=1)
+        
+            new_df['Ventricles_Imperial'] = Imperial_vols[Ventricles_labels].sum(axis=1)
+            new_df['brainstem_Imperial'] = Imperial_vols[Brainstem_labels]
+            new_df['corpus_callosum_Imperial'] = Imperial_vols[Cc_label]
+            new_df['cerebellum_Imperial'] = Imperial_vols[Cerebellum_labels].sum(axis=1)
+            new_df['CSF_Imperial'] = Imperial_vols['Imperial 83']
+            new_df['Intracranial_Imperial'] = new_df.loc[:,['GM_sum_Imperial','WM_sum_Imperial','Deep_Gray_Imperial','Ventricles_Imperial','brainstem_Imperial','cerebellum_Imperial','CSF_Imperial']].sum(axis=1)
+            new_df['Total_Brain_Volume_Imperial'] = new_df.loc[:,['GM_sum_Imperial','WM_sum_Imperial','Deep_Gray_Imperial','brainstem_Imperial','cerebellum_Imperial']].sum(axis=1)
+            
+            return new_df
         @staticmethod
         def extract_WM_Imperial(df:Union[pd.DataFrame,List])->pd.DataFrame:
             WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['WM_sum_Imperial']
