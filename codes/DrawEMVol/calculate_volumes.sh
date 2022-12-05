@@ -4,9 +4,12 @@
 src="$(pwd)"
 
 volume_data=neonatal_release3
-segmentation=_desc-drawem87_dseg.nii.gz
+segmentation_87=_desc-drawem87_dseg.nii.gz
+segmentation_9=_desc-drawem9_dseg.nii.gz
+
 subjects_list=subjects_list.txt
 volume_output=volumetric_DrawEM.txt
+tissue_seg_output=9TT.txt
 
 set -e
 . ../docs/bash/support_functions.sh
@@ -22,7 +25,8 @@ cd $src
 
 function calculate_volumes() {
 	subject_list=$1
-	output_file=$2
+	segmentation=$2
+	output_file=$3
 	output_file=$(echo ${output_file/tmp-})
 	ID_list=()
 	output_ID_list=()
@@ -51,20 +55,16 @@ function calculate_volumes() {
 		id_ses=$(echo $ID | sed 's/\//_/')
 		segm_file=$volume_data/$ID/anat/${id_ses}${segmentation}
 		volumes=()
-		for value in `seq 87`; do
-			lower_t=$(( $value - 1 ))
-			upper_t=$(( $value + 1 ))
-			volume=$(fslstats -t $segm_file -l $lower_t -u $upper_t -V | awk '{print $2}')
-			volumes+=($volume)
-		done
+		volume=$(fslstats -K $segm_file $segm_file -V | awk '{print $2}')
+		volumes+=($volume)
 		echo $ID ${volumes[@]} >> $output_file
 		)
 	done
 }
 
 
-run 'calculating volumes' calculate_volumes IN:$subjects_list OUT:$volume_output
-
+#run 'calculating volumes' calculate_volumes IN:$subjects_list $segmentation_87 OUT:$volume_output
+run 'calculating 9 TT volumes' calculate_volumes IN:$subjects_list $segmentation_9 OUT:$tissue_seg_output
 
 
 
