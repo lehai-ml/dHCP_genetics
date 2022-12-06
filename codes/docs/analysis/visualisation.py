@@ -1,3 +1,7 @@
+"""
+This is a visualisation file, containing all the necessary visualisations.
+You can draw simple plots, Bar or Scatter, or the Brain segmentation
+"""
 #import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -992,9 +996,39 @@ def draw_box_plots(df,
     ax.text(0, 0, 't-test pval=%0.03f' % (pval))
 
 class Brainmap:
+    """
+    This is used to plot the brain visualisations using nibable
     
+    Attributes:
+        atlas_file = the nibabel loaded image
+        atlas = the numpy array representation of nifti image
+        cmap = the color scheme
+        
+    Methods:
+        get_edges
+            used to get the visualise the segmentation outline
+        plot_segmentation
+            plot the segmentations with filled in color and legend
+        get_ROIs_coordinates
+            get the X,Y,Z coordinates of different regions in the Nifti file.
+    """
     def __init__(self,atlas_file:Union[str,nib.nifti1.Nifti1Image],
-                 cmap:str='Spectral',cmap_reversed:bool=False):
+                 cmap:str='Spectral',cmap_reversed:bool=False)-> None:
+        """
+        Parameters
+        ----------
+        atlas_file : Union[str,nib.nifti1.Nifti1Image]
+            The path to the Nifti file or the nibable loaded nifti image.
+        cmap : str, optional
+            The color scheme. The default is 'Spectral'.
+        cmap_reversed : bool, optional
+            Reverse the color scheme. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
         if isinstance(atlas_file,str):
             self.atlas_file = nib.load(atlas_file)
         elif isinstance(atlas_file,nib.nifti1.Nifti1Image):
@@ -1009,12 +1043,21 @@ class Brainmap:
             self.cmap = self.cmap.reversed()
     
     @staticmethod
-    def get_edges(outline): # use in brain_segmentation
+    def get_edges(outline:np.ndarray): # use in brain_segmentation
         """
-        Use in the brain segmentation
+        Draw the edges of a structure.
+        Parameters
+        ----------
+        outline:np.ndarray : 
+            array of number, edges will be drawn around the edges of the non-zero structures.
+            If two pixels next to each other are non-zero, then a black rectangle is drawn.
+            If two pixels are non-zero and not next to each other, then two black squares are drawn.
+        Returns
+        -------
+        None.
+
         """
-        #for each pixel colour the edges.
-        edges = []
+        edges = [] #for each pixel colour the edges.
         rr,cc = np.nonzero(outline)
         switcheroo = lambda x,y: (y,x) # the imshow and the np.matrix have different coordinates
         def check_sides(r,c,outline):
@@ -1069,11 +1112,14 @@ class Brainmap:
                          cmap:str='Spectral',plot_orientation:bool=True,**figkwargs):
         """
         Plot the brain segmentation
-
+        
+        Note:
+            Essentially, two brain maps are created.
+            The original brain map is used to create segmentation outline.
+            The second brain map is used to fill in the color.
+            
         Parameters
         ----------
-        cls : TYPE
-            DESCRIPTION.
         map_view : List, optional
             {'all','sagittal','axial','coronal'}. The default is ['all'].
         atlas_slice: int,list, dict, optional
@@ -1158,19 +1204,21 @@ class Brainmap:
         original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
         original_coronal_atlas = brain_map.atlas[:,atlas_slice_dict['coronal'],:].copy()
         original_sagittal_atlas = brain_map.atlas[atlas_slice_dict['sagittal'],:,:].copy()
-                
-        if label_legend is not None:
+
+        if label_legend is not None:# if legend dictionary is provided
             unique_regions = np.unique(brain_map.atlas[~np.isnan(brain_map.atlas)]) #not labelling the np.nan values
             for region in unique_regions:
                 if region not in label_legend:
-                    brain_map.atlas[brain_map.atlas==region] = np.nan
+                    brain_map.atlas[brain_map.atlas==region] = np.nan #regions that are not provided in the legend they are removed from colouring.
             
             #check for unique legends- basically group the labels/ regions if the legend is the same. the original outline will still be shown
             unique_legends = set(label_legend.values()) 
+            #essentially if 2 keys denote the same value, you get a new dictionary: {Value:[key1,key2,etc.]}
             legend_label = {uniq_leg:[k for k in label_legend.keys() if label_legend[k] == uniq_leg] for uniq_leg in unique_legends}
             for legend,label in legend_label.items():
                 if len(label)>1:
                     for region in label:
+                        #if more than one key show the same value, then change it to the same key.
                         brain_map.atlas[brain_map.atlas==region] = label[0]
             
             if 'outline_label_legends' not in figkwargs:
