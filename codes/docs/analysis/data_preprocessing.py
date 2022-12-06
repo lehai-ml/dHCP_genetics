@@ -203,133 +203,138 @@ class Volumes:
             return new_df
         
         @staticmethod
-        def get_tissue_type(df:pd.DataFrame):
+        def get_segment(df:Union[pd.DataFrame,List,dict],col:str=None,**kwargs):
             """
-            The Imperial labels are as follows:
-                white_matter_labels       = 51..82+48              # tissues: 3
-                gray_matter_labels        = 5..16,20..39        # tissues: 2
-                deep_gray_matter_labels   = 1..4,40..47,85..87  # tissues: 5,7,9
-                lateral_ventricles_labels = 49,50
-                corpus_callosum_labels    = 48
-                inter_hemisphere_labels   = 40..47,85..87
-                brainstem_labels          = 19
-                cerebellum_labels         = 17,18
+            Get the specific segment from DrawEM legend
+            
+            NOTE:
+                The Imperial labels are as follows:
+                    white_matter_labels       = 51..82+48              # tissues: 3
+                    gray_matter_labels        = 5..16,20..39        # tissues: 2
+                    deep_gray_matter_labels   = 1..4,40..47,85..87  # tissues: 5,7,9
+                    lateral_ventricles_labels = 49,50
+                    corpus_callosum_labels    = 48
+                    inter_hemisphere_labels   = 40..47,85..87
+                    brainstem_labels          = 19
+                    cerebellum_labels         = 17,18
+            Parameters
+            ----------
+            df : Union[pd.DataFrame,List,dict]
+                List of labels to select from must be named ['Imperial 1', 'Imperial 2'] etc.
+                can be dataframe, list or dict
+            col : str, optional
+                if providing dataframe, must specify where to look for labels
+                {'index','column' or name of the column}. The default is None.
+            **kwargs : dict
+                {'tissue':[WM,GM,DGM,Ventricle,Brainstem,Cerebellum,Background],
+                 'lobe':[frontal,parietal,occipital,temporal],
+                 'side':[left,right]}
             """
-            new_df = df.copy()
-            WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['Imperial 48']
-            GM_labels = [f'Imperial {i}' for i in range(5,17)] + [f'Imperial {i}' for i in range(20,40)]
-            DGM_labels = [f'Imperial {i}' for i in range(1,5)] + [f'Imperial {i}' for i in range(40,48)] + [f'Imperial {i}' for i in range(85,88)]
-            #this deep Gray matter contains the hippocampus + amygdala (in the 9TT segmentation file, deepGM do not contain Hipp+Amygdala)
-            Ventricles_labels = [f'Imperial {i}' for i in range(49,51)]
-            Brainstem_labels = ['Imperial 19']
-            Cerebellum_labels = ['Imperial 17','Imperial 18']
-            Cc_label = ['Imperial 48']
+            if 'tissue' not in kwargs:
+                kwargs['tissue'] = []
+            if 'lobe' not in kwargs:
+                kwargs['lobe'] = []
+            if 'side' not in kwargs:
+                kwargs['side'] = []
+            if isinstance(kwargs['tissue'],str):
+                kwargs['tissue'] = [kwargs['tissue']]
+            if isinstance(kwargs['lobe'],str):
+                kwargs['lobe'] = [kwargs['lobe']]
+            if isinstance(kwargs['side'],str):
+                kwargs['side'] = [kwargs['side']]
             
-            Imperial_vols=new_df[[i for i in df.columns if 'Imperial' in i]].copy() # get the regions with Imperial in the name
-            new_df['GM_sum_Imperial'] = Imperial_vols[GM_labels].sum(axis=1)
-        
-            new_df['WM_sum_Imperial'] = Imperial_vols[WM_labels].sum(axis=1)
-        
-            new_df['Deep_Gray_Imperial'] = Imperial_vols[DGM_labels].sum(axis=1)
-        
-            new_df['Ventricles_Imperial'] = Imperial_vols[Ventricles_labels].sum(axis=1)
-            new_df['brainstem_Imperial'] = Imperial_vols[Brainstem_labels]
-            new_df['corpus_callosum_Imperial'] = Imperial_vols[Cc_label]
-            new_df['cerebellum_Imperial'] = Imperial_vols[Cerebellum_labels].sum(axis=1)
-            new_df['CSF_Imperial'] = Imperial_vols['Imperial 83']
-            new_df['Intracranial_Imperial'] = new_df.loc[:,['GM_sum_Imperial','WM_sum_Imperial','Deep_Gray_Imperial','Ventricles_Imperial','brainstem_Imperial','cerebellum_Imperial','CSF_Imperial']].sum(axis=1)
-            new_df['Total_Brain_Volume_Imperial'] = new_df.loc[:,['GM_sum_Imperial','WM_sum_Imperial','Deep_Gray_Imperial','brainstem_Imperial','cerebellum_Imperial']].sum(axis=1)
-            
-            return new_df
-        @staticmethod
-        def extract_WM_Imperial(df:Union[pd.DataFrame,List])->pd.DataFrame:
-            WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['WM_sum_Imperial']
-            if isinstance(df,list):
-                return [i for i in df if i in WM_labels]
-            try:
-                WM_df = df[df['Connection'].isin(WM_labels)].sort_values(by='PRS_pval') #search WM cols
-            except KeyError: # propably not a Mass Univariate table
-                WM_df = df.loc[:,df.columns.isin(WM_labels)]
-            return WM_df
-        
-        @staticmethod
-        def extract_GM_Imperial(df:Union[pd.DataFrame,List])->pd.DataFrame:
-            GM_labels = [f'Imperial {i}' for i in range(5,17)] + [f'Imperial {i}' for i in range(20,40)] + ['GM_sum_Imperial']
-            if isinstance(df,list):
-                return [i for i in df if i in GM_labels]
-            try:
-                GM_df = df[df['Connection'].isin(GM_labels)].sort_values(by='PRS_pval') #search WM cols
-            except KeyError: # propably not a Mass Univariate table
-                GM_df = df.loc[:,df.columns.isin(GM_labels)]
-            return GM_df
-        
-        @staticmethod
-        def extract_deepGM_Imperial(df:Union[pd.DataFrame,List])->pd.DataFrame:
-            DGM_labels = [f'Imperial {i}' for i in range(1,5)] + [f'Imperial {i}' for i in range(40,48)] + [f'Imperial {i}' for i in range(86,88)]
-            if isinstance(df,list):
-                return [i for i in df if i in DGM_labels]
-            try:
-                DGM_df = df[df['Connection'].isin(DGM_labels)].sort_values(by='PRS_pval') #search WM cols
-            except KeyError: # propably not a Mass Univariate table
-                DGM_df = df.loc[:,df.columns.isin(DGM_labels)]
-            return DGM_df
-        
-        @staticmethod
-        def extract_lobe(df:Union[pd.DataFrame,List],lobes:List[str]=None,matter=None) -> pd.DataFrame:
-            def return_lobe(lobe:str,matter:str=None):
+            def return_segment(Imperial_tissue:list,tissues:list=None):
+                ### tissue types
+                WM_labels = [f'Imperial {i}' for i in range(51,83)] + ['Imperial 48']
+                GM_labels = [f'Imperial {i}' for i in range(5,17)] + [f'Imperial {i}' for i in range(20,40)]
+                DGM_labels = [f'Imperial {i}' for i in range(1,5)] + [f'Imperial {i}' for i in range(40,48)] + [f'Imperial {i}' for i in range(85,88)]
+                #this deep Gray matter contains the hippocampus + amygdala (in the 9TT segmentation file, deepGM do not contain Hipp+Amygdala)
+                Ventricles_labels = [f'Imperial {i}' for i in range(49,51)]
+                Brainstem_labels = ['Imperial 19']
+                Cerebellum_labels = ['Imperial 17','Imperial 18']
+                Background_labels = ['Imperial 84','Imperial 85']
+                ### lobes
                 temporal_lobes = [f'Imperial {i}' for i in [5,6,7,8,11,12,13,14,28,29,30,31,
                                                            51,52,53,54,57,58,59,60,71,72,73,74]]
                 frontal_lobes = [f'Imperial {i}' for i in [36,37,79,80]]
                 occipital_lobes = [f'Imperial {i}' for i in [22,23,65,66,61,62,69,70,26,27]]
                 parietal_lobes = [f'Imperial {i}' for i in [38,39,81,82]]
-                if lobe=='temporal':
-                    lobe_to_return = temporal_lobes
-                elif lobe=='frontal':
-                    lobe_to_return = frontal_lobes
-                elif lobe=='occipital':
-                    lobe_to_return = occipital_lobes
-                elif lobe=='parietal':
-                    lobe_to_return = parietal_lobes
-                if matter is not None:
-                    if matter == 'wm':
-                        lobe_to_return = Volumes.Imperial.extract_WM_Imperial(lobe_to_return)
-                    elif matter == 'gm':
-                        lobe_to_return = Volumes.Imperial.extract_GM_Imperial(lobe_to_return)
-                return lobe_to_return
-            lobes_to_return=[]
-            if isinstance(lobes,str):
-                if lobes == 'all':
-                    lobes = ['temporal','frontal','occipital','parietal']
-                else:
-                    lobes = [lobes]
-            if isinstance(lobes,list):
-                for lobe in lobes:
-                    lobes_to_return+=return_lobe(lobe,matter)
-            else:
-                raise ValueError('have not defined lobes')
-            if isinstance(df,list):
-                return [i for i in df if i in lobes_to_return]
-            try:
-                lobes_df = df[df['Connection'].isin(lobes_to_return)].sort_values(by='PRS_pval') #search WM cols
-            except KeyError: # propably not a Mass Univariate table
-                lobes_df = df.loc[:,df.columns.isin(lobes_to_return)]
+                
+                ###side
+                left = [i for i in range(1,18,2)] + [i for i in range(21,48,2)] + [i for i in range(49,62,2)] + [i for i in range(64,83,2)] + [87]
+                right = [i for i in range(1,88) if i not in left + [19,48,83,84,85]]
+                left = [f'Imperial {i}' for i in left]
+                right = [f'Imperial {i}' for i in right]
+                
+               
+                all_tissues = []
+                for tissue in tissues:
+                    if tissue == 'WM':
+                        all_tissues += [i for i in Imperial_tissue if i in WM_labels]
+                    elif tissue == 'GM':
+                        all_tissues += [i for i in Imperial_tissue if i in GM_labels]
+                    elif tissue == 'DGM':
+                        all_tissues += [i for i in Imperial_tissue if i in DGM_labels]
+                    elif tissue=='Ventricle':
+                        all_tissues += [i for i in Imperial_tissue if i in Ventricles_labels]
+                    elif tissue == 'Brainstem':
+                        all_tissues += [i for i in Imperial_tissue if i in Brainstem_labels]
+                    elif tissue == 'Cerebellum':
+                        all_tissues += [i for i in Imperial_tissue if i in Cerebellum_labels]
+                    elif tissue == 'Background':
+                        all_tissues += [i for i in Imperial_tissue if i in Background_labels]
+                    elif tissue=='temporal':
+                        all_tissues += [i for i in Imperial_tissue if i in temporal_lobes]
+                    elif tissue=='frontal':
+                        all_tissues += [i for i in Imperial_tissue if i in frontal_lobes]
+                    elif tissue=='occipital':
+                        all_tissues += [i for i in Imperial_tissue if i in occipital_lobes]
+                    elif tissue=='parietal':
+                        all_tissues += [i for i in Imperial_tissue if i in parietal_lobes]
+                    elif tissue == 'left':
+                        all_tissues += [i for i in Imperial_tissue if i in left]
+                    elif tissue == 'right':
+                        all_tissues += [i for i in Imperial_tissue if i in right]
+
+                return list(set(all_tissues))
             
-            return lobes_df
-        
-        def get_hemisphere(df:Union[pd.DataFrame,List],side=None):
-            left = [i for i in range(1,18,2)] + [i for i in range(21,48,2)] + [i for i in range(49,62,2)] + [i for i in range(64,83,2)] + [87]
-            right = [i for i in range(1,88) if i not in left + [19,48,83,84,85]]
-            if side == 'left':
-                to_return = [f'Imperial {i}' for i in left]
-            if side == 'right':
-                to_return = [f'Imperial {i}' for i in right]
             if isinstance(df,list):
-                return [i for i in df if i in to_return]
-            try:
-                side_df = df[df['Connection'].isin(to_return)].sort_values(by='PRS_pval') #search WM cols
-            except KeyError: # propably not a Mass Univariate table
-                side_df = df.loc[:,df.columns.isin(to_return)]
-            return side_df
+                segments_to_examine = df
+            elif isinstance(df,pd.DataFrame):
+                if isinstance(col,str):
+                    if col == 'index':
+                        segments_to_examine = df.index.tolist()
+                    elif col == 'column':
+                        segments_to_examine = df.columns.tolist()
+                    else:
+                        segments_to_examine = df[col].tolist()
+                else:
+                    raise ValueError('col must be defined if parsing dataframe')
+            elif isinstance(df,dict):
+                segments_to_examine = [i for i in df.keys()]
+            
+            if len(kwargs['tissue'])>=1:
+                segments_to_examine = return_segment(segments_to_examine,tissues=kwargs['tissue'])
+            if len(kwargs['lobe'])>=1:
+                segments_to_examine = return_segment(segments_to_examine,tissues=kwargs['lobe'])
+            if len(kwargs['side'])>=1:
+                segments_to_examine = return_segment(segments_to_examine,tissues=kwargs['side'])
+            
+            segments_to_examine = sorted(segments_to_examine)
+            if isinstance(df,list):
+                return segments_to_examine
+            elif isinstance(df,pd.DataFrame):
+                if isinstance(col,str):
+                    if col == 'index':
+                        return df.loc[segments_to_examine,:]
+                    elif col == 'column':
+                        return df[segments_to_examine]
+                    else:
+                        return df.loc[df[col].isin(segments_to_examine),:]
+            elif isinstance(df,dict):
+                return {k:df[k] for k in segments_to_examine}
+
+        
                 
         
         @staticmethod
@@ -376,8 +381,8 @@ class Volumes:
              'Imperial 39': 'Parietal lobe left GM', 
              'Imperial 40': 'Caudate nucleus right', 
              'Imperial 41': 'Caudate nucleus left', 
-             'Imperial 42': 'Thalamus right, high intensity part in T', 
-             'Imperial 43': 'Thalamus left, high intensity part in T', 
+             'Imperial 42': 'Thalamus right, high intensity part in T2', 
+             'Imperial 43': 'Thalamus left, high intensity part in T2', 
              'Imperial 44': 'Subthalamic nucleus right', 
              'Imperial 45': 'Subthalamic nucleus left', 
              'Imperial 46': 'Lentiform Nucleus right', 
@@ -420,61 +425,82 @@ class Volumes:
              'Imperial 83': 'CSF', 
              'Imperial 84': 'Extra-cranial background', 
              'Imperial 85': 'Intra-cranial background', 
-             'Imperial 86': 'Thalamus right, low intensity part in T', 
-             'Imperial 87': 'Thalamus left, low intensity part in T'}
+             'Imperial 86': 'Thalamus right, low intensity part in T2', 
+             'Imperial 87': 'Thalamus left, low intensity part in T2'}
             
-            Imperial_label_dict = defaultdict(dict)            
-            for imperial_connection,connection in labels.items():
-                number = imperial_connection # get the number
-                temp_connection = connection
-                if 'left' in temp_connection:
-                    Imperial_label_dict[number]['Orientation'] = 'left'
-                    temp_connection = temp_connection.replace('left','').strip()
-                elif 'right' in temp_connection:
-                    Imperial_label_dict[number]['Orientation'] = 'right'
-                    temp_connection = temp_connection.replace('right','').strip()
-                else:
-                    Imperial_label_dict[number]['Orientation'] = 'None'
-                if 'GM' in temp_connection:
-                    Imperial_label_dict[number]['matter'] = 'GM'
-                    temp_connection = temp_connection.replace('GM','').strip()
-                elif 'WM' in temp_connection:
-                    Imperial_label_dict[number]['matter'] = 'WM'
-                    temp_connection = temp_connection.replace('WM','').strip()
-                else:
-                    Imperial_label_dict[number]['matter'] = 'None'
-                temp_connection = temp_connection.split(' ')
-                try:
-                    part_index = temp_connection.index('part')
-                    Imperial_label_dict[number]['part'] = temp_connection[part_index-1]
-                    temp_connection.remove(temp_connection[part_index-1])
-                    temp_connection.remove('part')
-                except ValueError:
-                    Imperial_label_dict[number]['part'] = 'None'
-                temp_connection = ' '.join(temp_connection)
-                Imperial_label_dict[number]['Name'] = temp_connection.strip()
-                if Imperial_label_dict[number]['Name'][-1] == ',':
-                    Imperial_label_dict[number]['Name'] = temp_connection.replace(',','')
+            Imperial_label_dict = {k:{'name':v} for k,v in labels.items()}
+            Imperial_keys = [i for i in Imperial_label_dict.keys()]
+            return Imperial_label_dict
+
+            # for imperial_connection,connection in labels.items():
+            #     number = imperial_connection # get the number
+            #     temp_connection = connection.lower()
+                
+            #     if 'left' in temp_connection:
+            #         Imperial_label_dict[number]['orientation'] = 'left'
+            #         temp_connection = temp_connection.replace('left','').strip()
+            #     elif 'right' in temp_connection:
+            #         Imperial_label_dict[number]['orientation'] = 'right'
+            #         temp_connection = temp_connection.replace('right','').strip()
+            #     else:
+            #         Imperial_label_dict[number]['orientation'] = 'None'
+            #     if 'gm' in temp_connection:
+            #         Imperial_label_dict[number]['matter'] = 'GM'
+            #         temp_connection = temp_connection.replace('gm','').strip()
+            #     elif 'wm' in temp_connection:
+            #         Imperial_label_dict[number]['matter'] = 'WM'
+            #         temp_connection = temp_connection.replace('wm','').strip()
+            #     else:
+            #         Imperial_label_dict[number]['matter'] = 'None'
+            #     temp_connection = temp_connection.split(' ')
+            #     try:
+            #         part_index = temp_connection.index('part')
+            #         Imperial_label_dict[number]['part'] = temp_connection[part_index-1]
+            #         temp_connection.remove(temp_connection[part_index-1])
+            #         temp_connection.remove('part')
+            #     except ValueError:
+            #         Imperial_label_dict[number]['part'] = 'None'
+            #     temp_connection = ' '.join(temp_connection)
+            #     if 'lobe' in temp_connection:
+            #         if 'temporal' in temp_connection:
+            #             Imperial_label_dict[number]['lobe'] = 'temporal'
+            #         elif 'frontal' in temp_connection:
+            #             Imperial_label_dict[number]['lobe'] = 'frontal'
+            #         elif 'parietal' in temp_connection:
+            #             Imperial_label_dict[number]['lobe'] = 'parietal'
+            #         elif 'occipital' in temp_connection:
+            #             Imperial_label_dict[number]['lobe'] = 'occipital'
+            #     else:
+            #         if 'fusiformis' in temp_connection:
+            #             Imperial_label_dict[number]['lobe'] = 'occipital'
+            #         elif 'parahippocampalis' in temp_connection:
+            #             Imperial_label_dict[number]['lobe'] = 'temporal'
+            #         else:
+            #             Imperial_label_dict[number]['lobe'] = 'None'
+                    
+            #     Imperial_label_dict[number]['name'] = temp_connection.strip()
+            #     if Imperial_label_dict[number]['name'][-1] == ',':
+            #         Imperial_label_dict[number]['name'] = temp_connection.replace(',','')
                 
             
-                if len(Imperial_label_dict[number]['Name'].split(' ')) > 1:
-                    Imperial_label_dict[number]['abbr'] = ''.join([word[0] for word in Imperial_label_dict[number]['Name'].split(' ')]).upper()
-                else:
-                    Imperial_label_dict[number]['abbr'] = Imperial_label_dict[number]['Name'][:4].upper()
-                if Imperial_label_dict[number]['Orientation'] != 'None':
-                    Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['Orientation'][0].upper(),Imperial_label_dict[number]['abbr']])
-                if grouping == 'segmented': # will be orientation + name + matter
-                    if Imperial_label_dict[number]['matter'] != 'None':
-                        Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['matter']])
-                elif grouping == 'gmwm2gether': # will be orientation + part + name
-                    if Imperial_label_dict[number]['part'] != 'None':
-                        Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['part']])                        
-                elif grouping is None:
-                    #include everything orientation + part + name + matter
-                    if Imperial_label_dict[number]['part'] != 'None':
-                        Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['part']])                        
-                    if Imperial_label_dict[number]['matter'] != 'None':
-                        Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['matter']])
+            #     if len(Imperial_label_dict[number]['name'].split(' ')) > 1:
+            #         Imperial_label_dict[number]['abbr'] = ''.join([word[0] for word in Imperial_label_dict[number]['name'].split(' ')]).upper()
+            #     else:
+            #         Imperial_label_dict[number]['abbr'] = Imperial_label_dict[number]['name'][:4].upper()
+            #     if Imperial_label_dict[number]['Orientation'] != 'None':
+            #         Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['Orientation'][0].upper(),Imperial_label_dict[number]['abbr']])
+            #     if grouping == 'segmented': # will be orientation + name + matter
+            #         if Imperial_label_dict[number]['matter'] != 'None':
+            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['matter']])
+            #     elif grouping == 'gmwm2gether': # will be orientation + part + name
+            #         if Imperial_label_dict[number]['part'] != 'None':
+            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['part']])                        
+            #     elif grouping is None:
+            #         #include everything orientation + part + name + matter
+            #         if Imperial_label_dict[number]['part'] != 'None':
+            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['part']])                        
+            #         if Imperial_label_dict[number]['matter'] != 'None':
+            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['matter']])
             
             return Imperial_label_dict
             
