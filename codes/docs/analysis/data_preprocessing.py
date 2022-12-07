@@ -259,7 +259,7 @@ class Volumes:
                 frontal_lobes = [f'Imperial {i}' for i in [36,37,79,80]]
                 occipital_lobes = [f'Imperial {i}' for i in [22,23,65,66,61,62,69,70,26,27]]
                 parietal_lobes = [f'Imperial {i}' for i in [38,39,81,82]]
-                
+
                 ###side
                 left = [i for i in range(1,18,2)] + [i for i in range(21,48,2)] + [i for i in range(49,62,2)] + [i for i in range(64,83,2)] + [87]
                 right = [i for i in range(1,88) if i not in left + [19,48,83,84,85]]
@@ -338,9 +338,10 @@ class Volumes:
                 
         
         @staticmethod
-        def get_Imperial_legends(label:dict=None,grouping:str=None):
-            if not isinstance(label,dict):
-                labels =  {'Imperial 1': 'Hippocampus left', 
+        def get_Imperial_legends(**segmentkwargs):
+            
+            ###This bit is hardcoded
+            labels =  {'Imperial 1': 'Hippocampus left', 
              'Imperial 2': 'Hippocampus right', 
              'Imperial 3': 'Amygdala left', 
              'Imperial 4': 'Amygdala right', 
@@ -428,81 +429,53 @@ class Volumes:
              'Imperial 86': 'Thalamus right, low intensity part in T2', 
              'Imperial 87': 'Thalamus left, low intensity part in T2'}
             
-            Imperial_label_dict = {k:{'name':v} for k,v in labels.items()}
-            Imperial_keys = [i for i in Imperial_label_dict.keys()]
-            return Imperial_label_dict
-
-            # for imperial_connection,connection in labels.items():
-            #     number = imperial_connection # get the number
-            #     temp_connection = connection.lower()
-                
-            #     if 'left' in temp_connection:
-            #         Imperial_label_dict[number]['orientation'] = 'left'
-            #         temp_connection = temp_connection.replace('left','').strip()
-            #     elif 'right' in temp_connection:
-            #         Imperial_label_dict[number]['orientation'] = 'right'
-            #         temp_connection = temp_connection.replace('right','').strip()
-            #     else:
-            #         Imperial_label_dict[number]['orientation'] = 'None'
-            #     if 'gm' in temp_connection:
-            #         Imperial_label_dict[number]['matter'] = 'GM'
-            #         temp_connection = temp_connection.replace('gm','').strip()
-            #     elif 'wm' in temp_connection:
-            #         Imperial_label_dict[number]['matter'] = 'WM'
-            #         temp_connection = temp_connection.replace('wm','').strip()
-            #     else:
-            #         Imperial_label_dict[number]['matter'] = 'None'
-            #     temp_connection = temp_connection.split(' ')
-            #     try:
-            #         part_index = temp_connection.index('part')
-            #         Imperial_label_dict[number]['part'] = temp_connection[part_index-1]
-            #         temp_connection.remove(temp_connection[part_index-1])
-            #         temp_connection.remove('part')
-            #     except ValueError:
-            #         Imperial_label_dict[number]['part'] = 'None'
-            #     temp_connection = ' '.join(temp_connection)
-            #     if 'lobe' in temp_connection:
-            #         if 'temporal' in temp_connection:
-            #             Imperial_label_dict[number]['lobe'] = 'temporal'
-            #         elif 'frontal' in temp_connection:
-            #             Imperial_label_dict[number]['lobe'] = 'frontal'
-            #         elif 'parietal' in temp_connection:
-            #             Imperial_label_dict[number]['lobe'] = 'parietal'
-            #         elif 'occipital' in temp_connection:
-            #             Imperial_label_dict[number]['lobe'] = 'occipital'
-            #     else:
-            #         if 'fusiformis' in temp_connection:
-            #             Imperial_label_dict[number]['lobe'] = 'occipital'
-            #         elif 'parahippocampalis' in temp_connection:
-            #             Imperial_label_dict[number]['lobe'] = 'temporal'
-            #         else:
-            #             Imperial_label_dict[number]['lobe'] = 'None'
+            label_dict = {k:{'name':v,'tissue':None,
+                             'lobe':None,'side':None,
+                             'segment':None,'structure':None,
+                             'abbr':None} for k,v in labels.items()}
+            # get basic structure of the dictionary, for each label
+            # you have 1) tissue 2) lobe 3) side
+            for tissue in ['WM','GM','Ventricle','Brainstem','Cerebellum','Background','CSF']:
+                tissue_key = Volumes.Imperial.get_segment(label_dict,tissue=[tissue]).keys()
+                for k in tissue_key:
+                    label_dict[k]['tissue'] = tissue
+            
+            for lobe in ['frontal','temporal','occipital','parietal']:
+                lobe_key = Volumes.Imperial.get_segment(label_dict,lobe=[lobe]).keys()
+                for k in lobe_key:
+                    label_dict[k]['lobe'] = lobe
+            
+            for side in ['left','right']:
+                side_key = Volumes.Imperial.get_segment(label_dict,side=[side]).keys()
+                for k in side_key:
+                    label_dict[k]['side'] = side
                     
-            #     Imperial_label_dict[number]['name'] = temp_connection.strip()
-            #     if Imperial_label_dict[number]['name'][-1] == ',':
-            #         Imperial_label_dict[number]['name'] = temp_connection.replace(',','')
-                
+            # for each part you check if it is medial, anterior posterior etc.            
+            for k in label_dict:
+                if 'part' in label_dict[k]['name']:
+                    if 'Thalamus' in label_dict[k]['name']:
+                        label_dict[k]['segment'] = ' '.join(label_dict[k]['name'].split('part')[0].split(' ')[-3:-1])
+                    else:
+                        label_dict[k]['segment']=label_dict[k]['name'].split('part')[0].split(' ')[-2]
+            # finally you assign structure name to it
+            for k in label_dict:
+                label_dict[k]['structure'] = label_dict[k]['name']
+                for n in label_dict[k]:
+                    if n == 'name' or n=='structure' or n == 'lobe':
+                        continue
+                    if n == 'tissue' and (label_dict[k]['tissue'] == 'Cerebellum' or label_dict[k]['tissue']=='CSF' or label_dict[k]['tissue']=='Brainstem' or label_dict[k]['tissue']=='Ventricle'):
+                        continue
+                    try:
+                        label_dict[k]['structure'] = label_dict[k]['structure'].replace(label_dict[k][n],'')
+                    except TypeError:
+                        continue
+                label_dict[k]['structure'] = label_dict[k]['structure'].split(',')[0]
+                label_dict[k]['structure'] = label_dict[k]['structure'].replace('part','').strip()
             
-            #     if len(Imperial_label_dict[number]['name'].split(' ')) > 1:
-            #         Imperial_label_dict[number]['abbr'] = ''.join([word[0] for word in Imperial_label_dict[number]['name'].split(' ')]).upper()
-            #     else:
-            #         Imperial_label_dict[number]['abbr'] = Imperial_label_dict[number]['name'][:4].upper()
-            #     if Imperial_label_dict[number]['Orientation'] != 'None':
-            #         Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['Orientation'][0].upper(),Imperial_label_dict[number]['abbr']])
-            #     if grouping == 'segmented': # will be orientation + name + matter
-            #         if Imperial_label_dict[number]['matter'] != 'None':
-            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['matter']])
-            #     elif grouping == 'gmwm2gether': # will be orientation + part + name
-            #         if Imperial_label_dict[number]['part'] != 'None':
-            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['part']])                        
-            #     elif grouping is None:
-            #         #include everything orientation + part + name + matter
-            #         if Imperial_label_dict[number]['part'] != 'None':
-            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['part']])                        
-            #         if Imperial_label_dict[number]['matter'] != 'None':
-            #             Imperial_label_dict[number]['abbr'] = '.'.join([Imperial_label_dict[number]['abbr'],Imperial_label_dict[number]['matter']])
+            ### This bit is not
             
-            return Imperial_label_dict
+            return label_dict
+        
             
                 
     class AAL:    
