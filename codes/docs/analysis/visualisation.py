@@ -1221,7 +1221,7 @@ class Brainmap:
                         #if more than one key show the same value, then change it to the same key.
                         brain_map.atlas[brain_map.atlas==region] = label[0]
             
-            if 'outline_label_legends' not in figkwargs:
+            if 'outline_label_legends' not in figkwargs: # whether to outline only the keys in the legend
                 figkwargs['outline_label_legends'] = True
             if figkwargs['outline_label_legends']:
                 original_axial_atlas = brain_map.atlas[:,:,atlas_slice_dict['axial']].copy()
