@@ -338,7 +338,7 @@ class Volumes:
                 
         
         @staticmethod
-        def get_Imperial_legends(**segmentkwargs):
+        def get_Imperial_legends(grouping=None):
             
             ###This bit is hardcoded
             labels =  {'Imperial 1': 'Hippocampus left', 
@@ -463,7 +463,7 @@ class Volumes:
                 for n in label_dict[k]:
                     if n == 'name' or n=='structure' or n == 'lobe':
                         continue
-                    if n == 'tissue' and (label_dict[k]['tissue'] == 'Cerebellum' or label_dict[k]['tissue']=='CSF' or label_dict[k]['tissue']=='Brainstem' or label_dict[k]['tissue']=='Ventricle'):
+                    if n == 'tissue' and (label_dict[k]['tissue'] in ['Cerebellum','CSF','Brainstem','Ventricle']):
                         continue
                     try:
                         label_dict[k]['structure'] = label_dict[k]['structure'].replace(label_dict[k][n],'')
@@ -473,11 +473,45 @@ class Volumes:
                 label_dict[k]['structure'] = label_dict[k]['structure'].replace('part','').strip()
             
             ### This bit is not
-            
-            return label_dict
         
-            
-                
+            # the abbr will be structure.tissue.segment.side
+            # if tissue:
+            for k in label_dict:
+                if len(label_dict[k]['structure'].split()) > 1:
+                    label_dict[k]['abbr'] = ''.join([x[0].upper() for x in label_dict[k]['structure'].split()])
+                else:
+                    label_dict[k]['abbr'] = label_dict[k]['structure'][0:4].upper()
+                for n in ['tissue','side','segment']:
+                        try:
+                            label_dict[k]['abbr'] = '.'.join([label_dict[k]['abbr'],label_dict[k][n]])
+                        except TypeError:
+                            continue
+
+            if isinstance(grouping,str):
+                grouping = [grouping]
+            if isinstance(grouping,list):#{lobe}
+                if 'lobe' in grouping: # replace the structure name with lobe
+                    for k in label_dict:
+                        if label_dict[k]['lobe'] is None:
+                            label_dict[k]['abbr'] = None
+                        else:
+                            label_dict[k]['abbr'] = label_dict[k]['abbr'].replace(label_dict[k]['abbr'].split('.')[0],label_dict[k]['lobe'])
+                            if label_dict[k]['segment'] is not None:
+                                label_dict[k]['abbr'] = label_dict[k]['abbr'].replace('.'+label_dict[k]['segment'],'')
+                for k in label_dict:
+                    if label_dict[k]['abbr'] is not None:
+                        if 'gmwm2gether' in grouping:
+                            if label_dict[k]['tissue'] is not None:
+                                label_dict[k]['abbr'] = label_dict[k]['abbr'].replace('.'+label_dict[k]['tissue'],'')
+                        if 'segmented' in grouping and 'lobe' not in grouping:
+                            if label_dict[k]['segment'] is not None:
+                                label_dict[k]['abbr'] = label_dict[k]['abbr'].replace('.'+label_dict[k]['segment'],'')
+                        if 'hemisphere' in grouping:
+                            if label_dict[k]['side'] is not None:
+                                label_dict[k]['abbr'] = label_dict[k]['abbr'].replace('.'+label_dict[k]['side'],'')
+
+            return label_dict
+
     class AAL:    
         @staticmethod
         def group_AAL_volumes(df:pd.DataFrame,
