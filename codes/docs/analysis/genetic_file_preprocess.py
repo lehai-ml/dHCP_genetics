@@ -1,6 +1,17 @@
 """"
 genetic_file_preprocess.py
 preprocess prsice, magma and plink file outputs
+
+Following steps are available:
+    Cohort - used to combine the genetic and imaging data together
+        get_termness
+        preprocess_PRSice_PRS_Anc_files
+        remove_outliers
+    preprocess_plink_assoc_linear_files
+    preprocess_magma_annotation_file
+    preprocess_david_gene_functional_classification_file
+    generate_gmt_file
+    convert_gene_id_to_gene_name
 """
 from typing import List, Union, Optional
 import pandas as pd

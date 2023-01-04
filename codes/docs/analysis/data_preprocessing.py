@@ -1,12 +1,29 @@
 """ data_preprocessing.py
 This is a custom files of all preprocessing steps necessary to transform the 
 diffusion and volumetric data before the data exploration and ML training step.
+
+Following steps are available:
+    
+    move_multiple_columns - used to move multiple columns of the pandas dataframe to a new pos.
+    Diffusion
+        lower_triangle- used to get the lower triangle of a symmetrical matrix
+        reverse_lower_triangle- organise a 1D matrix to a square 2D undirected matrix
+        create_ROIs_combinations- Provide combination of the ROI
+        create_nodes_from_ROI_combinations
+    Volumes
+        Imperial
+            group_Imperial_Volumes - Group volumes segmented by DrawEM atlas
+            get_segment- Get specific segment from DrawEM legend
+            get_Imperial_legends- Hardcoded Imperial legends
+        AAL
+            group_AAL_volumes - Group volumes segmented by AAL atlas
+            
 """
 import numpy as np
 import pandas as pd
 from typing import Union, List
 from .data_preprocessing_high_dimension import FeatureReduction
-from collections import defaultdict
+
 def move_multiple_columns(df,cols_to_move=[],ref_col='',place='After'):
     """
     Move multiple columns of the pandas dataframe to a new position.
@@ -338,8 +355,24 @@ class Volumes:
                 
         
         @staticmethod
-        def get_Imperial_legends(grouping=None):
-            
+        def get_Imperial_legends(grouping:[list,str]=None)->dict:
+            """
+            Generate Imperial legends. May be used for visualisation.Brainmap
+
+            Parameters
+            ----------
+            grouping : {'lobe','gmwm2gether','segmented','hemisphere'}, optional
+                lobe- combine the regions by lobes (frontal, temporal, occipital, parietal)
+                gmwm2gether- combine the same region- white and grey matter.
+                segmented - combine the same region - anterior and posterior
+                hemisphere - combine the same region - left and right. The default is None.
+
+            Returns
+            -------
+            label_dict : dict
+                Dictionary containing the regions name.
+
+            """
             ###This bit is hardcoded
             labels =  {'Imperial 1': 'Hippocampus left', 
              'Imperial 2': 'Hippocampus right', 

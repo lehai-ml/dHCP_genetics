@@ -1,8 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Used to analyse high dimension data
-@author: lh20
 """
 
 #Scikit-lib
@@ -10,10 +7,6 @@ Used to analyse high dimension data
 
 import pandas as pd
 import numpy as np
-from collections import defaultdict
-from scipy.stats import pearsonr
-from scipy.sparse import csr_matrix
-from scipy.sparse.csgraph import connected_components #use depth-first search
 from typing import List, Union, Optional
 
 from sklearn.decomposition import PCA
