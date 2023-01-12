@@ -22,6 +22,7 @@ Following steps are available:
 import numpy as np
 import pandas as pd
 from typing import Union, List
+from collections import defaultdict
 from .data_preprocessing_high_dimension import FeatureReduction
 
 def move_multiple_columns(df,cols_to_move=[],ref_col='',place='After'):
@@ -132,95 +133,95 @@ class Diffusion:
 
 class Volumes:
     class Imperial:
-        @staticmethod
-        def group_Imperial_volumes(df:pd.DataFrame,
-                                   grouping:str=None,
-                                   operation:str = 'sum',
-                                   remove_duplicated:bool=True,
-                                   return_grouping_scheme:bool=False)->pd.DataFrame:
-            """
-            Grouping the volumes of the brain regions segmented by DrawEM (Imperial atlas).
-            Parameters
-            ----------
-            df : pd.DataFrame
-                This is the volumetric dataframe.
-            grouping: str {'segmented','gmwm2gether','all',None}
-                segmented: return grouped WM and grouped GM (e.g. anterior superior temporal gyrus WM right side is grouped with posterior STG WM right side)
-                gmwm2gether: return grouped WM and GM (e.g. anterior superior temporal right side WM + anterior STG right side GM)
-                all: return grouped segmented and gmwm2gether - first do 'segmented' then do 'gmwm2gether'.
-            operation : str, optional
-                {'sum','mean'}. The default is 'sum
-            remove_duplicated : bool, optional
-                Remove duplicated columns after groupings. The default is True. (useful when plotting)
-            return_grouping_scheme: bool, optional
-                Return the grouping scheme dictionary
+        #@staticmethod
+        # def group_Imperial_volumes(df:pd.DataFrame,
+        #                            grouping:str=None,
+        #                            operation:str = 'sum',
+        #                            remove_duplicated:bool=True,
+        #                            return_grouping_scheme:bool=False)->pd.DataFrame:
+        #     """
+        #     Grouping the volumes of the brain regions segmented by DrawEM (Imperial atlas).
+        #     Parameters
+        #     ----------
+        #     df : pd.DataFrame
+        #         This is the volumetric dataframe.
+        #     grouping: str {'segmented','gmwm2gether','all',None}
+        #         segmented: return grouped WM and grouped GM (e.g. anterior superior temporal gyrus WM right side is grouped with posterior STG WM right side)
+        #         gmwm2gether: return grouped WM and GM (e.g. anterior superior temporal right side WM + anterior STG right side GM)
+        #         all: return grouped segmented and gmwm2gether - first do 'segmented' then do 'gmwm2gether'.
+        #     operation : str, optional
+        #         {'sum','mean'}. The default is 'sum
+        #     remove_duplicated : bool, optional
+        #         Remove duplicated columns after groupings. The default is True. (useful when plotting)
+        #     return_grouping_scheme: bool, optional
+        #         Return the grouping scheme dictionary
     
-            Returns
-            -------
-            new_df : pd.DataFrame
-                Grouped dataframe.
+        #     Returns
+        #     -------
+        #     new_df : pd.DataFrame
+        #         Grouped dataframe.
     
-            """
-            new_df = df.copy()
-            if grouping is not None:
-                if grouping == 'segmented':
-                    #Grey Matter
-                    new_df = FeatureReduction.combine_columns_together(new_df,[['Imperial 5','Imperial 7'],['Imperial 6','Imperial 8'], #  Anterior Temporal Lobe    
-                                                                               ['Imperial 9','Imperial 25'],['Imperial 10','Imperial 24'],# Gyri parahippocampalis et ambines
-                                                                               ['Imperial 11','Imperial 31'],['Imperial 12','Imperial 30'],# STG
-                                                                               ['Imperial 13','Imperial 29'],['Imperial 14','Imperial 28'], # Medial and Inferior Temporal gyri
-                                                                               ['Imperial 15','Imperial 27'],['Imperial 16','Imperial 26'],# Lateral occipital gyrus
-                                                                               ['Imperial 33','Imperial 35'],['Imperial 32','Imperial 34']],# Cingulate gyrus
-                                                              operation=operation,
-                                                              remove_duplicated=remove_duplicated)
+        #     """
+        #     new_df = df.copy()
+        #     if grouping is not None:
+        #         if grouping == 'segmented':
+        #             #Grey Matter
+        #             new_df = FeatureReduction.combine_columns_together(new_df,[['Imperial 5','Imperial 7'],['Imperial 6','Imperial 8'], #  Anterior Temporal Lobe    
+        #                                                                        ['Imperial 9','Imperial 25'],['Imperial 10','Imperial 24'],# Gyri parahippocampalis et ambines
+        #                                                                        ['Imperial 11','Imperial 31'],['Imperial 12','Imperial 30'],# STG
+        #                                                                        ['Imperial 13','Imperial 29'],['Imperial 14','Imperial 28'], # Medial and Inferior Temporal gyri
+        #                                                                        ['Imperial 15','Imperial 27'],['Imperial 16','Imperial 26'],# Lateral occipital gyrus
+        #                                                                        ['Imperial 33','Imperial 35'],['Imperial 32','Imperial 34']],# Cingulate gyrus
+        #                                                       operation=operation,
+        #                                                       remove_duplicated=remove_duplicated)
                     
-                    #White Matter
-                    new_df = FeatureReduction.combine_columns_together(new_df,[['Imperial 57','Imperial 74'],['Imperial 58','Imperial 73'], # # STG
-                                                                               ['Imperial 51','Imperial 53'],['Imperial 52','Imperial 54'],# this is the Anterior Temporal Lob
-                                                                               ['Imperial 55','Imperial 68'],['Imperial 56','Imperial 67'],#Gyri parahippocampalis et ambines
-                                                                               ['Imperial 59','Imperial 72'],['Imperial 60','Imperial 71'], # Medial and Inferior Temporal gyri
-                                                                               ['Imperial 61','Imperial 70'],['Imperial 62','Imperial 69'],# Lateral occipital gyrus
-                                                                               ['Imperial 76','Imperial 78'],['Imperial 75','Imperial 77']],# Cingulate gyrus
-                                                              operation=operation,
-                                                              remove_duplicated=remove_duplicated)
+        #             #White Matter
+        #             new_df = FeatureReduction.combine_columns_together(new_df,[['Imperial 57','Imperial 74'],['Imperial 58','Imperial 73'], # # STG
+        #                                                                        ['Imperial 51','Imperial 53'],['Imperial 52','Imperial 54'],# this is the Anterior Temporal Lob
+        #                                                                        ['Imperial 55','Imperial 68'],['Imperial 56','Imperial 67'],#Gyri parahippocampalis et ambines
+        #                                                                        ['Imperial 59','Imperial 72'],['Imperial 60','Imperial 71'], # Medial and Inferior Temporal gyri
+        #                                                                        ['Imperial 61','Imperial 70'],['Imperial 62','Imperial 69'],# Lateral occipital gyrus
+        #                                                                        ['Imperial 76','Imperial 78'],['Imperial 75','Imperial 77']],# Cingulate gyrus
+        #                                                       operation=operation,
+        #                                                       remove_duplicated=remove_duplicated)
                     
-                    #DeepGray Matter
-                    new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 42','Imperial 86'],
-                                                                                ['Imperial 43', 'Imperial 87']],
-                                                                       operation=operation,
-                                                                       remove_duplicated = remove_duplicated)
-                elif grouping == 'gmwm2gether':
-                    new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 5','Imperial 51'],['Imperial 6','Imperial 52'],['Imperial 7','Imperial 53'],['Imperial 8','Imperial 54'], #Anterior Temporal lobe
-                                                                                ['Imperial 9','Imperial 55'],['Imperial 10','Imperial 56'],['Imperial 25','Imperial 68'],['Imperial 24','Imperial 67'], # Gyri parahippocampalis et ambines
-                                                                                ['Imperial 11','Imperial 57'],['Imperial 12','Imperial 58'],['Imperial 31','Imperial 74'],['Imperial 30','Imperial 73'], # STG
-                                                                                ['Imperial 13','Imperial 59'],['Imperial 14','Imperial 60'],['Imperial 29','Imperial 72'],['Imperial 28','Imperial 71'], # Medial and ITG
-                                                                                ['Imperial 15','Imperial 61'],['Imperial 16','Imperial 62'],['Imperial 27','Imperial 70'],['Imperial 26','Imperial 69'], # Lateral Occipital Gyrus
-                                                                                ['Imperial 33','Imperial 76'],['Imperial 32','Imperial 75'],['Imperial 35','Imperial 78'],['Imperial 34','Imperial 77'],# Cingulate Gyrus
-                                                                                ['Imperial 21','Imperial 64'],['Imperial 20','Imperial 63'], # insula
-                                                                                ['Imperial 23','Imperial 66'],['Imperial 22','Imperial 65'], # occipital lobe
-                                                                                ['Imperial 37','Imperial 80'],['Imperial 36','Imperial 79'],# frontal lobe
-                                                                                ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81']],# parietal lobe
-                                                                       operation=operation,
-                                                                       remove_duplicated = remove_duplicated)
+        #             #DeepGray Matter
+        #             new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 42','Imperial 86'],
+        #                                                                         ['Imperial 43', 'Imperial 87']],
+        #                                                                operation=operation,
+        #                                                                remove_duplicated = remove_duplicated)
+        #         elif grouping == 'gmwm2gether':
+        #             new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 5','Imperial 51'],['Imperial 6','Imperial 52'],['Imperial 7','Imperial 53'],['Imperial 8','Imperial 54'], #Anterior Temporal lobe
+        #                                                                         ['Imperial 9','Imperial 55'],['Imperial 10','Imperial 56'],['Imperial 25','Imperial 68'],['Imperial 24','Imperial 67'], # Gyri parahippocampalis et ambines
+        #                                                                         ['Imperial 11','Imperial 57'],['Imperial 12','Imperial 58'],['Imperial 31','Imperial 74'],['Imperial 30','Imperial 73'], # STG
+        #                                                                         ['Imperial 13','Imperial 59'],['Imperial 14','Imperial 60'],['Imperial 29','Imperial 72'],['Imperial 28','Imperial 71'], # Medial and ITG
+        #                                                                         ['Imperial 15','Imperial 61'],['Imperial 16','Imperial 62'],['Imperial 27','Imperial 70'],['Imperial 26','Imperial 69'], # Lateral Occipital Gyrus
+        #                                                                         ['Imperial 33','Imperial 76'],['Imperial 32','Imperial 75'],['Imperial 35','Imperial 78'],['Imperial 34','Imperial 77'],# Cingulate Gyrus
+        #                                                                         ['Imperial 21','Imperial 64'],['Imperial 20','Imperial 63'], # insula
+        #                                                                         ['Imperial 23','Imperial 66'],['Imperial 22','Imperial 65'], # occipital lobe
+        #                                                                         ['Imperial 37','Imperial 80'],['Imperial 36','Imperial 79'],# frontal lobe
+        #                                                                         ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81']],# parietal lobe
+        #                                                                operation=operation,
+        #                                                                remove_duplicated = remove_duplicated)
 
-                elif grouping == 'all':
-                    new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 5','Imperial 51','Imperial 7','Imperial 53'],['Imperial 6','Imperial 52','Imperial 8','Imperial 54'], #Anterior Temporal lobe
-                                                                                ['Imperial 9','Imperial 55','Imperial 25','Imperial 68'],['Imperial 10','Imperial 56','Imperial 24','Imperial 67'], # Gyri parahippocampalis et ambines
-                                                                                ['Imperial 11','Imperial 57','Imperial 31','Imperial 74'],['Imperial 12','Imperial 58','Imperial 30','Imperial 73'], # STG
-                                                                                ['Imperial 13','Imperial 59','Imperial 29','Imperial 72'],['Imperial 14','Imperial 60','Imperial 28','Imperial 71'], # Medial and ITG
-                                                                                ['Imperial 15','Imperial 61','Imperial 27','Imperial 70'],['Imperial 16','Imperial 62','Imperial 26','Imperial 69'], # Lateral Occipital Gyrus
-                                                                                ['Imperial 33','Imperial 76','Imperial 35','Imperial 78'],['Imperial 32','Imperial 75','Imperial 34','Imperial 77'],# Cingulate Gyrus
-                                                                                ['Imperial 21','Imperial 64'],['Imperial 20','Imperial 63'], # insula
-                                                                                ['Imperial 23','Imperial 66'],['Imperial 22','Imperial 65'], # occipital lobe
-                                                                                ['Imperial 37','Imperial 80'],['Imperial 36','Imperial 79'],# frontal lobe
-                                                                                ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81'],# Parietal lobe
-                                                                                ['Imperial 42','Imperial 86'],['Imperial 43','Imperial 87']], # Thalamus
-                                                                                operation=operation,
-                                                                                remove_duplicated = remove_duplicated)
-            return new_df
+        #         elif grouping == 'all':
+        #             new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 5','Imperial 51','Imperial 7','Imperial 53'],['Imperial 6','Imperial 52','Imperial 8','Imperial 54'], #Anterior Temporal lobe
+        #                                                                         ['Imperial 9','Imperial 55','Imperial 25','Imperial 68'],['Imperial 10','Imperial 56','Imperial 24','Imperial 67'], # Gyri parahippocampalis et ambines
+        #                                                                         ['Imperial 11','Imperial 57','Imperial 31','Imperial 74'],['Imperial 12','Imperial 58','Imperial 30','Imperial 73'], # STG
+        #                                                                         ['Imperial 13','Imperial 59','Imperial 29','Imperial 72'],['Imperial 14','Imperial 60','Imperial 28','Imperial 71'], # Medial and ITG
+        #                                                                         ['Imperial 15','Imperial 61','Imperial 27','Imperial 70'],['Imperial 16','Imperial 62','Imperial 26','Imperial 69'], # Lateral Occipital Gyrus
+        #                                                                         ['Imperial 33','Imperial 76','Imperial 35','Imperial 78'],['Imperial 32','Imperial 75','Imperial 34','Imperial 77'],# Cingulate Gyrus
+        #                                                                         ['Imperial 21','Imperial 64'],['Imperial 20','Imperial 63'], # insula
+        #                                                                         ['Imperial 23','Imperial 66'],['Imperial 22','Imperial 65'], # occipital lobe
+        #                                                                         ['Imperial 37','Imperial 80'],['Imperial 36','Imperial 79'],# frontal lobe
+        #                                                                         ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81'],# Parietal lobe
+        #                                                                         ['Imperial 42','Imperial 86'],['Imperial 43','Imperial 87']], # Thalamus
+        #                                                                         operation=operation,
+        #                                                                         remove_duplicated = remove_duplicated)
+        #     return new_df
         
         @staticmethod
-        def get_segment(df:Union[pd.DataFrame,List,dict],col:str=None,**kwargs):
+        def get_segment(df:Union[pd.DataFrame,List,dict],col:str='column',**kwargs):
             """
             Get the specific segment from DrawEM legend
             
@@ -243,7 +244,7 @@ class Volumes:
                 if providing dataframe, must specify where to look for labels
                 {'index','column' or name of the column}. The default is None.
             **kwargs : dict
-                {'tissue':[WM,GM,DGM,Ventricle,Brainstem,Cerebellum,Background],
+                {'tissue':[WM,GM,DGM,Ventricle,Brainstem,Cerebellum,Background,'CSF],
                  'lobe':[frontal,parietal,occipital,temporal],
                  'side':[left,right]}
             """
@@ -270,6 +271,7 @@ class Volumes:
                 Brainstem_labels = ['Imperial 19']
                 Cerebellum_labels = ['Imperial 17','Imperial 18']
                 Background_labels = ['Imperial 84','Imperial 85']
+                CSF_labels = ['Imperial 83']
                 ### lobes
                 temporal_lobes = [f'Imperial {i}' for i in [5,6,7,8,11,12,13,14,28,29,30,31,
                                                            51,52,53,54,57,58,59,60,71,72,73,74]]
@@ -298,6 +300,8 @@ class Volumes:
                         all_tissues += [i for i in Imperial_tissue if i in Brainstem_labels]
                     elif tissue == 'Cerebellum':
                         all_tissues += [i for i in Imperial_tissue if i in Cerebellum_labels]
+                    elif tissue == 'CSF':
+                        all_tissues += [i for i in Imperial_tissue if i in CSF_labels]
                     elif tissue == 'Background':
                         all_tissues += [i for i in Imperial_tissue if i in Background_labels]
                     elif tissue=='temporal':
@@ -545,6 +549,64 @@ class Volumes:
 
             return label_dict
 
+        def group_Imperial_volumes(df:pd.DataFrame,grouping:[list,str]=None,
+                                   operation:str='sum',drop_duplicates:bool=True):
+            """
+            Group Imperial Volume by summing them.
+            Use grouping scheme as defined in get_Imperial_legends
+            
+            NOTE: even if the df doesn't contain the necessary regions
+            i.e., df was applied get_segments before grouped.
+            it will still work.
+            
+            Parameters
+            ----------
+            df : pd.DataFrame
+                The data Frame containing the Imperial volumes as columns.
+            grouping : {'lobe','gmwm2gether','segmented','hemisphere'}, optional
+                lobe- combine the regions by lobes (frontal, temporal, occipital, parietal)
+                gmwm2gether- combine the same region- white and grey matter.
+                segmented - combine the same region - anterior and posterior
+                hemisphere - combine the same region - left and right. The default is None.
+            operation: str. {'sum','mean'}
+                how to group them. (mean can be used when generating positional info)
+            drop_duplicates: bool
+                Whether to drop the columns after grouping process.
+                by default, the first column in the group list is retained as the total
+                value of the rest of the values in the list and all values but the first one
+                is removed.
+                If False. All values in the grouped list will have the same values.
+                This is needed when plotting the Brain Map. Otherwise only the first value will show.
+            Returns
+            -------
+            new_df : pd.dataFrame
+                grouped DataFrame.
+
+            """
+            if not isinstance(df,pd.DataFrame):
+                raise TypeError('Needs pandas DataFrame')
+            new_df = df.copy()
+            grouped_volumes_dict = Volumes.Imperial.get_Imperial_legends(grouping)
+            grouped_volumes_dict = {k:v['abbr'] for k,v in grouped_volumes_dict.items()}#{'Imperial 1:'hipp.R'}
+            unique_grouped_volumes_dict = defaultdict(list)
+            for k,v in grouped_volumes_dict.items():
+                unique_grouped_volumes_dict[v].append(k)
+            for k,v in unique_grouped_volumes_dict.items():
+                if len(v) > 1:
+                    if operation == 'sum':
+                        new_df[v[0]] = df[v].sum(axis=1)
+                    elif operation == 'mean':
+                        new_df[v[0]] = df[v].mean(axis=1)
+                    if drop_duplicates:
+                        new_df = new_df.drop(columns=[i for i in df.columns if i in v[1:]])
+                    else:
+                        for col in v[1:]:
+                            if col in df.columns:
+                                new_df[col] = new_df[v[0]]
+            return new_df
+            
+                
+                
     class AAL:    
         @staticmethod
         def group_AAL_volumes(df:pd.DataFrame,
