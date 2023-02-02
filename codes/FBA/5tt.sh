@@ -59,7 +59,7 @@ run 'Generating Internal capsule from FOD template' \
 	mrconvert - -coord 3 1 - \| \
 	mrcalc - 0.0025 -sub 500 -mult -tanh 1 -add 2 -div OUT:ic_cutout.mif 
 
-run 'Masking the missing hippocampus' \ 
+run 'Masking the missing hippocampus' \
 	mrmath IN:$Tissue_segmented_probseg sum -axis 3 - \| mredit - -sphere 130,120,75 15 100 -sphere 65,120,75 15 100 OUT:wb.mif
 
 run 'Generating hippocampus mask' \
@@ -79,11 +79,11 @@ run 'Generating DGM template map' \
 
 run 'Generating WM template map' \
 	mrcalc IN:dgm_wout_hipp.mif ic_cutout.mif -mult - \| \
-	mrmath IN:wm_wout_ic.mif -sum OUT:$wm
+	mrmath IN:wm_wout_ic.mif - sum OUT:$wm
 
 run 'Generating CSF template map' \
 	mrconvert IN:$Tissue_segmented_probseg -coord 3 0,3,4 - \| \
-	mrmath - sum -axis 3 $csf
+	mrmath - sum -axis 3 OUT:$csf
 
 run 'Generating pathology map' \
 	mrcalc IN:$gm 0 -mult OUT:$path
