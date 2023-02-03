@@ -2,17 +2,30 @@
 
 cd $output_folder/$output_tractography
 
+#run 'getting contrast and design matrices' \
+#  python $src/generate_ID_list.py matrix \
+#  --file IN:$src/$subjects_list --sep , \
+#  --categorical 3 \
+#  --catnames Gender \
+#  --continuous 1 2 4 5 6 7 8 9 10 11 12 13 14 15 16 17 \
+#  --contnames GA PMA \
+#  PRS_1e-08 PRS_1e-07 PRS_1e-06 PRS_1e-05 PRS_0.0001 PRS_0.001 PRS_0.01 PRS_0.05 PRS_0.1 PRS_0.5 PRS_1 \
+#  euro_Anc_PC1 euro_Anc_PC2 euro_Anc_PC3 \
+#  --standardize \
+#  --contrast PRS_0.1 PRS_0.5 PRS_1 \
+#  --out_ID OUT:$fba_output/$id_file \
+#  --out_design OUT:$fba_output/$design_matrix \
+#  --out_contrast OUT:$fba_output/$contrast_matrix
+
 run 'getting contrast and design matrices' \
   python $src/generate_ID_list.py matrix \
   --file IN:$src/$subjects_list --sep , \
   --categorical 3 \
-  --catnames Gender \
-  --continuous 1 2 4 5 6 7 8 9 10 11 12 13 14 15 16 17 \
-  --contnames GA PMA \
-  PRS_1e-08 PRS_1e-07 PRS_1e-06 PRS_1e-05 PRS_0.0001 PRS_0.001 PRS_0.01 PRS_0.05 PRS_0.1 PRS_0.5 PRS_1 \
-  euro_Anc_PC1 euro_Anc_PC2 euro_Anc_PC3 \
+  --catnames sex \
+  --continuous 1 2 \
+  --contnames PMA GA \
   --standardize \
-  --contrast PRS_0.1 PRS_0.5 PRS_1 \
+  --contrast GA \
   --out_ID OUT:$fba_output/$id_file \
   --out_design OUT:$fba_output/$design_matrix \
   --out_contrast OUT:$fba_output/$contrast_matrix

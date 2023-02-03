@@ -17,11 +17,12 @@ run 'generate all available ID list' \
   python generate_ID_list.py generate \
   --file IN:$euro_SCZ_PRS_term \
   --header 0 \
-  --idcolumns ID Session_vol \
+  --idcolumns ID Session \
   --prefix sub- ses- \
-  --apcolumns GA_vol PMA_vol Gender PRS_1e-08 PRS_1e-07 PRS_1e-06 PRS_1e-05 \
-  PRS_0.0001 PRS_0.001 PRS_0.01 PRS_0.05 PRS_0.1 PRS_0.5 PRS_1 \
-  euro_Anc_PC1 euro_Anc_PC2 euro_Anc_PC3\
+  --apcolumns GA PMA sex \
+  SCZ_PRS_Pt_1e-08 SCZ_PRS_Pt_1e-07 SCZ_PRS_Pt_1e-06 SCZ_PRS_Pt_1e-05 SCZ_PRS_Pt_0.0001 SCZ_PRS_Pt_0.001 SCZ_PRS_Pt_0.01 SCZ_PRS_Pt_0.05 SCZ_PRS_Pt_0.1 SCZ_PRS_Pt_0.5 SCZ_PRS_Pt_1 \
+  ASD_PRS_Pt_1e-08 ASD_PRS_Pt_1e-07 ASD_PRS_Pt_1e-06 ASD_PRS_Pt_1e-05 ASD_PRS_Pt_0.0001 ASD_PRS_Pt_0.001 ASD_PRS_Pt_0.01 ASD_PRS_Pt_0.05 ASD_PRS_Pt_0.1 ASD_PRS_Pt_0.5 ASD_PRS_Pt_1 \
+  euro_Anc_PC1 euro_Anc_PC2 euro_Anc_PC3 euro_Anc_PC4 euro_Anc_PC5\
   --no-duplicates \
   --out OUT:$all_available_IDs
 
