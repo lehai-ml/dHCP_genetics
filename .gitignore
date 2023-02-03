@@ -16,6 +16,8 @@ codes/FBA/.process.sh.swp
 codes/FBA/data
 codes/FBA/dHCP_participant_info.csv
 codes/FBA/dhcp_neo_dMRI_derived
+codes/FBA/5TT_donald_example
+codes/FBA/Ale_output
 *.swp
 *.tck
 codes/FBA/atlas

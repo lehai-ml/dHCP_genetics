@@ -9,7 +9,7 @@ echo '###################################'
 
 mkdir -p $output_folder/$ID
 cd $output_folder/$ID
-run 'testing estimating mask' \
+run 'combine estimating mask' \
   dwi2mask IN:$src/$dwi_data/$ID/$dwi - \| mrcalc IN:$src/$dwi_data/$ID/$bet_mask - -multiply OUT:$mask
 
 run 'estimating fiber orientations distributions (FODs)' \
