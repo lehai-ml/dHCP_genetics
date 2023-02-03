@@ -587,7 +587,7 @@ class Volumes:
                 raise TypeError('Needs pandas DataFrame')
             new_df = df.copy()
             grouped_volumes_dict = Volumes.Imperial.get_Imperial_legends(grouping)
-            grouped_volumes_dict = {k:v['abbr'] for k,v in grouped_volumes_dict.items()}#{'Imperial 1:'hipp.R'}
+            grouped_volumes_dict = {k:v['abbr'] for k,v in grouped_volumes_dict.items() if k in new_df.columns}#{'Imperial 1:'hipp.R'}
             unique_grouped_volumes_dict = defaultdict(list)
             for k,v in grouped_volumes_dict.items():
                 unique_grouped_volumes_dict[v].append(k)
