@@ -208,4 +208,14 @@ function generate_binary_mask {
     eval ${to_eval[@]}
 }
 
+#convenient function that copy header into a new file
+function copy_header {
+	file1=$1
+	file2=$2
+	shift 2
+	folders=$@
+	for folder in ${folders[@]}; do
+	    for file in $file1 $file2; do head -n 1 $file >> $folder; done
+	done
+}
 

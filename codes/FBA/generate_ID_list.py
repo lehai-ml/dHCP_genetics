@@ -215,6 +215,7 @@ class Generateids:
         
         list1_IDs.columns=['IDs']+list1_IDs.columns.tolist()[1:]
         list2_IDs.columns=['IDs']+list2_IDs.columns.tolist()[1:]
+
         if get_differences:
             result_list = list1_IDs[~list1_IDs.IDs.isin(list2_IDs.IDs)].reset_index(drop=True)
         else:
@@ -353,7 +354,7 @@ class Generateids:
         name_file = ID_pd.iloc[:,0].apply(lambda x:x.replace('/','_')+'.mif')
         ID_list = name_file.tolist()
         if isinstance(ID_file,str):
-            with open(ID_file,'a') as f:
+            with open(ID_file,'w') as f:
                 for i in ID_list:
                     f.writelines(i)
                     f.writelines('\n')
@@ -403,6 +404,11 @@ class Generateids:
                 for hypothesis in contrast:
                     contrast_matrix_temp = [0 for i in range(len(independentVariable_names) +1 )]
                     contrast_id = [idx for idx,i in enumerate(independentVariable_names) if i == hypothesis]
+                    if len(contrast_id) == 0: # if nothing is in it
+                        #this happens if it is categorical var
+                        contrast_id = [idx for idx,i in enumerate(independentVariable_names) if hypothesis in i]
+                    if len(contrast_id) > 1:
+                        raise ValueError('the term of interest is repeating more than once')
                     contrast_matrix_temp[contrast_id[0]+1] = 1
                     contrast_matrix.append(contrast_matrix_temp)
             
