@@ -7,12 +7,12 @@ volume_data=neonatal_release3
 segmentation_87=_desc-drawem87_dseg.nii.gz
 segmentation_9=_desc-drawem9_dseg.nii.gz
 
-subjects_list=subjects_list.txt
+subjects_list=missing_ID.txt
 volume_output=volumetric_DrawEM.txt
 tissue_seg_output=9TT.txt
 
 set -e
-. ../docs/bash/support_functions.sh
+. support_functions.sh
 
 if [ ! -d $volume_data ]; then
 	echo "neonatal release not yet here"
@@ -63,7 +63,7 @@ function calculate_volumes() {
 }
 
 
-#run 'calculating volumes' calculate_volumes IN:$subjects_list $segmentation_87 OUT:$volume_output
+run 'calculating volumes' calculate_volumes IN:$subjects_list $segmentation_87 OUT:$volume_output
 run 'calculating 9 TT volumes' calculate_volumes IN:$subjects_list $segmentation_9 OUT:$tissue_seg_output
 
 

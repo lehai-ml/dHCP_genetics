@@ -12,15 +12,14 @@
 #fi
 #
 
-. ../docs/bash/support_functions.sh
+. support_functions.sh
 
-generate_ID_script=../docs/bash/generate_ID_list.py
 volumetric_data=neonatal_release3
 all_available_IDs=all_available_IDs.txt
 
 run 'generate all available ID list' \
-  python $generate_ID_script generate --folder IN:$volumetric_data --pattern "sub*/ses*" \
-  --no-duplicates \
+  python generate_ID_list.py generate --folder IN:$volumetric_data --pattern "sub*/ses*" \
+  --duplicates \
   --out OUT:$all_available_IDs
 
 #run 'selecting usable ID' \
