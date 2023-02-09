@@ -177,8 +177,7 @@ function sanity_check {
 #For example generate_track_mask file.txt "Include:" [binary_mask] [output]
 # will reiteratively get regions 10, 11, 12, 13, 14 in the binary mask and
 # combine into a single image using mrcalc.
-#e.g.max(max(max((mrcalc binary_mask == 10), (binary_mask==11)),
-#max((binary_mask==12),(binary_mask==13))),(binary_mask==14))
+#e.g. max(max(max(max(binary = 10;binary=11);binary=12);binary=13);binary=14)
 
 function generate_binary_mask {
     file=$1
@@ -196,13 +195,11 @@ function generate_binary_mask {
     to_eval="mrcalc "
     output=$1
     for (( i=0; i<${#include[@]}; ++i )); do
-	current_count=$((i+1))
         region="${include[i]}"
         to_eval+=$(echo $template $region -eq " ")
-	while [[ $((current_count % 2 )) -eq 0 ]]; do
+	if [ $i -gt 0 ]; then
 	    to_eval+="-max "
-	    current_count=$((current_count/2))
-	done
+	fi
     done
     to_eval+=$output
     eval ${to_eval[@]}
