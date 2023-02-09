@@ -37,3 +37,5 @@ dataset
 old/
 codes/FBA/output_term_preterm/tractography/fba/tractography_20mil/group_analysis/stats_fdc_ICV_PMA/summary_contrast
 codes/FBA/output_term_preterm/tractography/fba/tractography_20mil/group_analysis/stats_log_fc_ICV_PMA/summary_contrast
+test/
+codes/FBA/visualise_excluded_individual.sh
