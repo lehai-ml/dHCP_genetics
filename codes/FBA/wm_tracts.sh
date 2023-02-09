@@ -4,6 +4,10 @@
 mkdir -p $output_folder/$output_5TT/$tract_binary_masks
 cd $output_folder/$output_5TT/$tract_binary_masks
 
+# tckgen seeding mechanisms accept both mask image and sphere.
+# Therefore, we can provide either binary mask or spheres (spheres 
+#must be provided in x,y,z scanner coordinates and radius in mm).
+
 run 'regriding KANA mask' \
     mrgrid IN:${KANA_in_template_space} regrid -voxel 1.3 -interp nearest OUT:$src/$output_folder/$output_5TT/$regrid_KANA_in_template
 
