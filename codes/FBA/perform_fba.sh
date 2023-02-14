@@ -20,18 +20,18 @@ cd $output_folder/$output_tractography
 run 'getting contrast and design matrices' \
   python $src/generate_ID_list.py matrix \
   --file IN:$src/$subjects_list --sep , \
-  --categorical 3 4 \
-  --catnames sex termness \
-  --continuous 2 \
-  --contnames PMA \
+  --categorical 1 6 \
+  --catnames sex apoe \
+  --continuous 2 3 7 8 9\
+  --contnames PMA GA euro_Anc_PC1 euro_Anc_PC2 euro_Anc_PC3\
   --standardize \
-  --contrast termness \
+  --contrast apoe \
   --out_ID OUT:$fba_output/$id_file \
   --out_design OUT:$fba_output/$design_matrix \
   --out_contrast OUT:$fba_output/$contrast_matrix
-
-sanity_check sub $fba_output/$id_file $src/$output_folder/$all_subj_fd $src/$output_folder/$all_subj_fc $src/$output_folder/$all_subj_log_fc $src/$output_folder/$all_subj_fdc
-
+#
+#sanity_check sub $fba_output/$id_file $src/$output_folder/$all_subj_fd $src/$output_folder/$all_subj_fc $src/$output_folder/$all_subj_log_fc $src/$output_folder/$all_subj_fdc
+#
 #update_folder_if_needed run "'smoothing FD data'" \
 #  fixelfilter IN:$src/$output_folder/$all_subj_fd smooth OUT:$fba_output/$all_subj_fd_smooth -matrix IN:$fba_output/$ffixel_matrix 
 #update_folder_if_needed run "'smoothing log FC data'" \
@@ -40,18 +40,18 @@ sanity_check sub $fba_output/$id_file $src/$output_folder/$all_subj_fd $src/$out
 #  fixelfilter IN:$src/$output_folder/$all_subj_fdc smooth OUT:$fba_output/$all_subj_fdc_smooth -matrix IN:$fba_output/$ffixel_matrix
 #
 #statistical analysis FD, log(FC) and FDC fixelfestats
-#
+
 update_folder_if_needed run "'calculating fixelcfestats FD'" \
   fixelcfestats IN:$fba_output/$all_subj_fd_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_fd
 
 run 'copy design summary' copy_header IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix OUT:$fba_output/$stats_fd
 
-#update_folder_if_needed run "'calculating fixelcfestats log FC'" \
-#  fixelcfestats IN:$fba_output/$all_subj_log_fc_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_log_fc
-#
-#run 'copy design summary' copy_header IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix OUT:$fba_output/$stats_log_fc/$summary_contrast
-#
-#update_folder_if_needed run "'calculating fixelcfestats FDC'" \
-#  fixelcfestats IN:$fba_output/$all_subj_fdc_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_fdc
-#
-#run 'copy design summary' copy_header IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix OUT:$fba_output/$stats_fdc/$summary_contrast
+update_folder_if_needed run "'calculating fixelcfestats log FC'" \
+  fixelcfestats IN:$fba_output/$all_subj_log_fc_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_log_fc
+
+run 'copy design summary' copy_header IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix OUT:$fba_output/$stats_log_fc/$summary_contrast
+
+update_folder_if_needed run "'calculating fixelcfestats FDC'" \
+  fixelcfestats IN:$fba_output/$all_subj_fdc_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/$stats_fdc
+
+run 'copy design summary' copy_header IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix OUT:$fba_output/$stats_fdc/$summary_contrast
