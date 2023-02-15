@@ -263,6 +263,7 @@ function generate_wm_tract {
 	    fi
 	done < $file
 	cmd=($@)
+	additional_tck_args=()
 	for i in "${!cmd[@]}";do
 	    if [[ ${cmd[$i]} == "-ROI" ]]; then
 		ROI="${cmd[(($i+1))]}"
@@ -278,16 +279,20 @@ function generate_wm_tract {
 		output="${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-select" ]]; then
 		select="${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-include" ]]; then
+		additional_tck_args+=" -include ${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-exclude" ]]; then
+		additional_tck_args+=" -exclude ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-seeds" ]]; then
-		seeds="${cmd[(($i+1))]}"
+		additional_tck_args+=" -seeds ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-mask" ]]; then
-	        mask_tract="${cmd[(($i+1))]}"
+	        additional_tck_args+=" -mask ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-maxlength" ]]; then
-	        maxlength="${cmd[(($i+1))]}"
+	        additional_tck_args+=" -maxlength ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-minlength" ]]; then
-	        minlength="${cmd[(($i+1))]}"
+	        additional_tck_args+=" -minlength ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-fo" ]]; then
-		fo="${cmd[$i]}"
+		additional_tck_args+=" -force"
 	    elif [[ ${cmd[$i]} == "-keep" ]]; then
 		keep=1
 	    fi
@@ -297,15 +302,14 @@ function generate_wm_tract {
 	to_eval+=$track_cmd
 	if [[ $track_cmd == "tckgen" ]]; then
 	    if [ -z "${fod+x}" ];then
-		echo "FOD image is required to do tckgen iFOD2"
+		echo "-fod image is required to do tckgen iFOD2"
 		return 0
 	    fi
 	    to_eval+=" $fod"
 	    for n in "${!include[@]}"; do
 		if [[ ${include[$n]} == "-seed_image:" ]]; then
 		    seed_roi=${include[(($n+1))]}
-		    echo -e "${RED}>>> generating seed image ${NC}"
-		    seed_image="$identifier-tmp-seed_image.mif"
+		    seed_image="$identifier-tmp-seed_image-$seed_roi.mif"
 		    (generate_binary_ROI_mask $ROI $seed_roi $seed_image)
 		    to_eval+=" -seed_image $seed_image"
 		elif [[ ${include[$n]} == "-seed_sphere:" ]]; then
@@ -313,18 +317,9 @@ function generate_wm_tract {
 		    to_eval+=" -seed_sphere $seed_sphere"
 		fi
 	    done
-	    if [ ! -z "${act+x}" ];then
-	        to_eval+=" -act $act"
-	    fi
-	    if [ ! -z "${seeds+x}" ];then
-	        to_eval+=" -seeds $seeds"
-	    fi
-	    if [ ! -z "${select+x}" ];then
-	        to_eval+=" -select $select"
-	    fi
 	elif [[ $track_cmd == "tckedit" ]]; then
 	    if [ -z "${track+x}" ]; then
-	        echo -e "${RED} tck file is needed to do tckedit ${NC}"
+	        echo -e "${RED} -tckfile is needed to do tckedit ${NC}"
 		return 0
 	    fi
 	    to_eval+=" $track"
@@ -338,8 +333,7 @@ function generate_wm_tract {
 	                echo "ROI needed to create include/exclude mask"
 			return 0
 	            fi
-		    region="$identifier-tmp$to_do-$n.mif"
-		    echo 
+		    region="$identifier-tmp$to_do-$to_include.mif"
 	            (generate_binary_ROI_mask $ROI $to_include $region)
 		    to_eval+=" $to_do $region"
 		else
@@ -347,16 +341,8 @@ function generate_wm_tract {
 	        fi
 	    fi
 	done
-	if [ ! -z "${mask_tract+x}" ];then
-	    to_eval+=" -mask $mask_tract"
-	fi
-	if [ ! -z "${maxlength+x}" ];then
-	    to_eval+=" -maxlength $maxlength"
-	fi
-	if [ ! -z "${minlength+x}" ];then
-	    to_eval+=" -minlength $minlength"
-	fi
-	to_eval+=" $output $fo"
+	to_eval+=${additional_tck_args[@]}
+	to_eval+=" $output"
 	echo "${to_eval[@]}"
 	eval "${to_eval[@]}"
 	if [ -z "${keep+x}" ];then
