@@ -46,8 +46,11 @@ def main():
     id_matrix.add_argument('--standardize', help='standardize the continuous variables',action='store_true')
     id_matrix.add_argument('--no-standardize',dest='standardize',action='store_false')
     id_matrix.add_argument('--contrast',help='define the column to contrast',nargs='+')
+    id_matrix.add_argument('--neg', help='whether to perform opposite hypothesis', action='store_true')
     id_matrix.add_argument('--catnames',help='assign column names to categorical variable',nargs='+',type=str)
     id_matrix.add_argument('--contnames',help='assign column names to continuous variables',nargs='+',type=str)
+    id_matrix.add_argument('--id_prefix',help='assign prefix to the IDs in the ID file',type=str)
+    id_matrix.add_argument('--id_suffix',help='assign suffix to the IDs in the ID file',type=str)
     id_matrix.add_argument('--out_ID',help='output for ID file')
     id_matrix.add_argument('--out_design',help='output for design matrix')
     id_matrix.add_argument('--out_contrast',help='output for contrast matrix')
@@ -310,6 +313,9 @@ class Generateids:
                                    contrast:int=None,
                                    categorical_Names:List[str]=None,
                                    continuous_Names:List[str]=None,
+                                   negative:bool=False,
+                                   id_prefix:str=None,
+                                   id_suffix:str=None,
                                    ID_file:str=None,
                                    contrast_file:str=None,
                                    design_file:str=None):
@@ -331,6 +337,10 @@ class Generateids:
             assign column name of the categorical variables. The default is None.
         continuous_Names : TYPE, optional
             assign column name of the continuous variables. The default is None.
+        id_prefix: str, optional
+            define prefix to the id in the id list. (useful when need to define directory)
+        id_suffix: str, optional
+            define suffix to the id in the id list.
         ID_file : TYPE, optional
             output location of the ID file, where it is a file containing the 
             name of the subjects used in the study in the format sub-CCXXX_ses-XXX.mif. 
@@ -351,7 +361,11 @@ class Generateids:
                 ID_pd = pd.read_csv(filename,header=header,delim_whitespace=True)
             elif isinstance(sep,str):
                 ID_pd = pd.read_csv(filename,header=header,sep=sep)
-        name_file = ID_pd.iloc[:,0].apply(lambda x:x.replace('/','_')+'.mif')
+        if id_prefix is None:
+            id_prefix=''
+        if id_suffix is None:
+            id_suffix=''
+        name_file = ID_pd.iloc[:,0].apply(lambda x:id_prefix+x.replace('/','_')+id_suffix+'.mif')
         ID_list = name_file.tolist()
         if isinstance(ID_file,str):
             with open(ID_file,'w') as f:
@@ -409,7 +423,10 @@ class Generateids:
                         contrast_id = [idx for idx,i in enumerate(independentVariable_names) if hypothesis in i]
                     if len(contrast_id) > 1:
                         raise ValueError('the term of interest is repeating more than once')
-                    contrast_matrix_temp[contrast_id[0]+1] = 1
+                    if negative: # test opposite hypothesis
+                        contrast_matrix_temp[contrast_id[0]+1] = -1
+                    else:
+                        contrast_matrix_temp[contrast_id[0]+1] = 1
                     contrast_matrix.append(contrast_matrix_temp)
             
         if isinstance(contrast_file,str):
@@ -476,6 +493,9 @@ if __name__ == '__main__':
                                                contrast=args.contrast,
                                                categorical_Names=args.catnames,
                                                continuous_Names=args.contnames,
+                                               negative=args.neg,
+                                               id_prefix=args.id_prefix,
+                                               id_suffix=args.id_suffix,
                                                ID_file=args.out_ID,
                                                contrast_file=args.out_contrast,
                                                design_file=args.out_design)
