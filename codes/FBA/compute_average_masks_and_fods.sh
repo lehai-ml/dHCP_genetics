@@ -4,9 +4,12 @@ cd $output_folder
 echo '###################################'
 echo ''
 echo ''
-subject_masks=$(find ${ID_list[@]} -name $warped_mask_in_dHCP_40wk)
-subject_fods=$(find ${ID_list[@]} -name $warped_wm_fod_in_dHCP_40wk)
-
+check_here=()
+for ID in ${ID_list[@]};do
+    check_here+="$src/$individual_fods_output/$ID "
+done
+subject_masks=$(find ${check_here[@]} -name $warped_mask_in_dHCP_40wk)
+subject_fods=$(find ${check_here[@]} -name $warped_wm_fod_in_dHCP_40wk)
 run 'generating an average image of 40 weeks masks' \
 	echo IN:$src/$subjects_list \| mrmath $(IN $subject_masks) min -datatype bit - \| mrgrid - regrid -voxel 1.3 -interp nearest OUT:$warped_mask_average
 
