@@ -13,10 +13,15 @@ csf_response=dHCP_atlas_v2.1_rf_csf.dhsfa015 # this response function is generat
 #subjects_list=subjects_list.txt
 #subjects_list=subject_lists_term_preterm.txt
 #subjects_list=available_subjects_PRSPCA.txt
-subjects_list=available_subjects_APOE.txt
-output_folder=output/
-Ale_output=Ale_output
-
+#subjects_list=available_subjects_PRSPCA_test.txt
+#subjects_list=available_subjects_PRSrisk.txt
+#subjects_list=available_subjects_PRSPt001.txt
+#subjects_list=available_subjects_APOE.txt
+subjects_list=available_subjects_ZNF804A.txt
+#output_folder=output_PRSrisk/
+output_folder=output
+#individual_fods_output=individual_fods # this file is on dhcp-reconstruction/Hai/output
+individual_fods_output=output
 # Relevant files for generate_ID_list.sh
 rf_data="dhcp_neo_dMRI_derived"
 participants_info="dHCP_participant_info.csv"
@@ -83,12 +88,8 @@ reduced_number_of_streamlines=2000000
 reduced_tracts=reduced_tracts_${reduced_number_of_streamlines}.tck
 fba_output=fba
 ffixel_matrix=ffixel_matrix
-
 #Relevant files for perform_fba.sh
 
-all_subj_fd_smooth=all_subj_fd_smooth
-all_subj_log_fc_smooth=all_subj_log_fc_smooth
-all_subj_fdc_smooth=all_subj_fdc_smooth
 id_file=id_file.txt
 design_matrix=design_matrix.txt
 contrast_matrix=contrast_matrix.txt
@@ -106,43 +107,37 @@ dt_adc=dt_adc.mif
 dt_rd=dt_rd.mif
 dt_ad=dt_ad.mif
 
+DTI_in_template_space=DTI_in_template_space
+
+dti_stats=dti_stats
+
+#Relevant files for perform_tbss.sh
+tbss=tbss
+
 #Relevant file for generating tracts
 individual_tracts=individual_tracts
 interhemispheric_exclude=interhemispheric_exclude.mif
 wm_tracts=wm_tracts.txt
 
-tracks_streamlines=500000
-reduced_tracks_streamlines=100000
-UF_Right_tract="UF_Right_${tracks_streamlines}.tck"
-UF_Right_Reduced_tract="UF_Right_reduced_${reduced_tracks_streamlines}.tck"
-UF_Left_tract="UF_Left_${tracks_streamlines}.tck"
-UF_Left_Reduced_tract="UF_Left_reduced_${reduced_tracks_streamlines}.tck"
-CING_D_Left_tract="CING_D_Left_${tracks_streamlines}.tck"
-CING_D_Left_Reduced_tract="CING_D_Left_reduced_${reduced_tracks_streamlines}.tck"
-CING_D_Right_tract="CING_D_Right_${tracks_streamlines}.tck"
-CING_D_Right_Reduced_tract="CING_D_Right_reduced_${reduced_tracks_streamlines}.tck"
+tracts_streamlines=10000000
+reduced_tracts_streamlines=100000
+sift_tracts="sifted_${tracts_streamlines}.tck"
 
-#Uncinate Fasiculus
-seed_image_UF_Left=seed_image_UF_Left.mif
-seed_image_UF_Right=seed_image_UF_Right.mif
-include_image_UF_9_15=UF_9_15.mif
-include_image_UF_83_87=UF_83_87.mif
-include_image_UF_10_16=UF_10_16.mif
-include_image_UF_84_88=UF_84_88.mif
-exclude_image_UF_77_85=UF_77_85.mif
-exclude_image_UF_78_86=UF_78_86.mif
+#relevant for perform_fba_wm.sh
 
-#Cingulum Dorsal
-seed_image_CING_D_Left=seed_image_CING_D_Left.mif
-seed_image_CING_D_Right=seed_image_CING_D_Right.mif
-include_image_CING_31=CING_31.mif
-include_image_CING_32=CING_32.mif
-include_image_CING_33=CING_33.mif
-include_image_CING_34=CING_34.mif
-include_image_CING_35=CING_35.mif
-include_image_CING_36=CING_36.mif
-exclude_image_CING_39=CING_39.mif
-exclude_image_CING_40=CING_40.mif
+tract_fixel_mask=tract_fixel_mask
+
+fmi=fmi
+fma=fma
+cing_D_L=cing_D_L
+cing_D_R=cing_D_R
+uf_L=uf_L
+uf_R=uf_R
+cc=cc
+
+tract_to_examine=( $cc )
+fba_measures_to_examine=( fd fdc log_fc )
+
 
 #relevant for glass_brain.sh
 glass_brain_folder=glass_brain
@@ -188,6 +183,10 @@ cd $src
 cd $src
 #. calculate_dti.sh
 cd $src
-#. wm_tracts.sh
+#. perform_tbss.sh
+cd $src
+#. genwmtracts.sh
+cd $src
+#. perform_fba_wm.sh
 cd $src
 #. glass_brain.sh
