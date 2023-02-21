@@ -10,7 +10,7 @@ cd $output_folder/$output_tractography
 
 
 run 'creating streamlines' \
-  tckgen IN:$src/$output_folder/$warped_wm_fod_average -seed_image IN:$src/$output_folder/$warped_mask_average -mask IN:$src/$output_folder/$warped_mask_average -act IN:$src/$output_folder/$output_5TT/$image_5TT -select $number_of_streamlines -cutoff 0.06 -angle $angle -maxlen $maxlen -power $power OUT:$tracts
+  tckgen IN:$src/$output_folder/$warped_wm_fod_average -seed_image IN:$src/$output_folder/$warped_mask_average -mask IN:$src/$output_folder/$warped_mask_average -act IN:$src/$output_folder/$output_5TT/$image_5TT -select $number_of_streamlines -angle $angle -maxlen $maxlen -power $power OUT:$tracts
 
 ##run 'creating streamlines' \
 ##  tckgen IN:$src/$output_folder/$warped_wm_fod_average -seed_image IN:$src/$output_folder/$warped_mask_average -mask IN:$src/$output_folder/$warped_mask_average -act IN:$src/$output_folder/$output_5TT/$image_5TT -select 0 -seeds $number_of_streamlines OUT:$tracts
