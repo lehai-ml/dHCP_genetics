@@ -39,3 +39,10 @@ codes/FBA/output_term_preterm/tractography/fba/tractography_20mil/group_analysis
 codes/FBA/output_term_preterm/tractography/fba/tractography_20mil/group_analysis/stats_log_fc_ICV_PMA/summary_contrast
 test/
 codes/FBA/visualise_excluded_individual.sh
+codes/FBA/wm_test.sh
+codes/FBA/output 
+codes/FBA/output_PRSrisk 
+codes/FBA/output_term_preterm
+
+codes/FBA/individual_fods
+codes/gene_set/PRSice/genetic_dataset
