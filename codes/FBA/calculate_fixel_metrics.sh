@@ -12,10 +12,10 @@ echo '###################################'
 cd $output_folder/$ID
 
 run 'registering normalised FODs to average images' \
-  mrregister IN:$wm_norm_fod -mask1 IN:$mask IN:$src/$output_folder/$warped_wm_fod_average -nl_warp OUT:$native2average_warp OUT:$average2native_warp
+  mrregister IN:$src/$individual_fods_output/$ID/$wm_norm_fod -mask1 IN:$src/$individual_fods_output/$ID/$mask IN:$src/$output_folder/$warped_wm_fod_average -nl_warp OUT:$native2average_warp OUT:$average2native_warp
 
 run 'transforming FOD images to average template' \
-  mrtransform IN:$wm_norm_fod -warp IN:$native2average_warp -reorient_fod no OUT:$fod_in_template_space_NOT_REORIENTED
+  mrtransform IN:$src/$individual_fods_output/$ID/$wm_norm_fod -warp IN:$native2average_warp -reorient_fod no OUT:$fod_in_template_space_NOT_REORIENTED
 
 update_folder_if_needed run "'segmenting FOD images to estimate fixels and their fiber density'" \
  fod2fixel -mask IN:$src/$output_folder/$warped_mask_average IN:$fod_in_template_space_NOT_REORIENTED OUT:$fixel_in_template_space_NOT_REORIENTED -afd OUT:$fd
