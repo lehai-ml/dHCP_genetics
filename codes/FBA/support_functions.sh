@@ -95,11 +95,12 @@ function run {
       if [[ $out == */* ]]; then # if it is a first-time folder, then append tmp- to the file.
         mv $(echo ${out%\/*}"/tmp-"${out##*\/}) $out
       else
-	mv tmp-$out $out  2>/dev/null #sometimes the file is output to a folder, not the current one 
-        if [ $? -eq 1 ]; then
+        #sometimes the file is output to a folder, not the current one 
+	( mv tmp-$out $out  2>/dev/null ) || 
+        ( if [ $? -eq 1 ]; then
           output_dir=$(find ../../ -name "tmp-${out}") # sometimes the files is output to the folder in parents directory
           mv $output_dir ${output_dir%/*}/$out 
-        fi
+	  fi )
       fi
     done
   fi
@@ -207,6 +208,7 @@ function generate_binary_mask {
 
 #Convenience function used in generate_wm_tract.
 #usage: generate_binary_ROI_mask ROIs_template ROI1+ROI2+ROI3
+# can also concatenate multiple ROI.mif ROI template can be none
 # combine into a single image using mrcalc.
 #e.g. max(max(max(max(binary = 1;binary=2);binary=3)))
 
@@ -215,15 +217,19 @@ function generate_binary_ROI_mask {
     #IFS='+' read -r -a ROIs <<< $2
     ROIs=($(echo $2 | tr '+' ' '))
     output=$3
-    to_eval="mrcalc "
-    for (( i=0; i<${#ROIs[@]}; ++i ));do
-	region="${ROIs[i]}"
-	to_eval+=$(echo $ROIs_template $region -eq " ")
-	if [ $i -gt 0 ];then
-	    to_eval+="-max "
-	fi
-    done
-    to_eval+=$output
+    if [[ $2 =~ ".mif" ]]; then
+        to_eval="mrmath ${ROIs[@]} max $output"
+    else
+        to_eval="mrcalc "
+        for (( i=0; i<${#ROIs[@]}; ++i ));do
+            region="${ROIs[i]}"
+            to_eval+="$ROIs_template $region -eq "
+            if [ $i -gt 0 ];then
+                to_eval+="-max "
+            fi
+        done
+        to_eval+=$output
+    fi
     eval "${to_eval[@]}"
 }
 
@@ -240,6 +246,7 @@ function generate_binary_ROI_mask {
 # -seeds = seeds option with tckgen
 # -maxlength = maximum length to select
 # -minlength = minimum length to select
+# -cutoff = set the FOD cut off.
 # -fo = -force overwrite existing file
 # -keep = keep generated temporary files (e.g., seed image)
 # TEXTfile
@@ -277,8 +284,12 @@ function generate_wm_tract {
 		act="${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-out" ]]; then
 		output="${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-seed_image" ]]; then
+		additional_tck_args+=" -seed_image ${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-seed_sphere" ]]; then
+		additional_tck_args+=" -seed_sphere ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-select" ]]; then
-		select="${cmd[(($i+1))]}"
+		additional_tck_args+=" -select ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-include" ]]; then
 		additional_tck_args+=" -include ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-exclude" ]]; then
@@ -291,6 +302,10 @@ function generate_wm_tract {
 	        additional_tck_args+=" -maxlength ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-minlength" ]]; then
 	        additional_tck_args+=" -minlength ${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-cutoff" ]]; then
+	        additional_tck_args+=" -cutoff ${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-angle" ]]; then
+	        additional_tck_args+=" -angle ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-fo" ]]; then
 		additional_tck_args+=" -force"
 	    elif [[ ${cmd[$i]} == "-keep" ]]; then
@@ -345,9 +360,9 @@ function generate_wm_tract {
 	to_eval+=" $output"
 	echo "${to_eval[@]}"
 	eval "${to_eval[@]}"
-	if [ -z "${keep+x}" ];then
+	( if [ -z "${keep+x}" ];then
 	    rm $identifier-tmp-*.mif 2>/dev/null
-	fi
+	    fi ) || return 0
 }
 
 #convenient function that copy header into a new file
