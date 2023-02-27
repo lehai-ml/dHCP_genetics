@@ -51,6 +51,7 @@ def main():
     id_matrix.add_argument('--contnames',help='assign column names to continuous variables',nargs='+',type=str)
     id_matrix.add_argument('--id_prefix',help='assign prefix to the IDs in the ID file',type=str)
     id_matrix.add_argument('--id_suffix',help='assign suffix to the IDs in the ID file',type=str)
+    id_matrix.add_argument('--sort_id',help='sort the ids alphabeto-numerically',action='store_true')
     id_matrix.add_argument('--out_ID',help='output for ID file')
     id_matrix.add_argument('--out_design',help='output for design matrix')
     id_matrix.add_argument('--out_contrast',help='output for contrast matrix')
@@ -316,6 +317,7 @@ class Generateids:
                                    negative:bool=False,
                                    id_prefix:str=None,
                                    id_suffix:str=None,
+                                   sort_id:bool=False,
                                    ID_file:str=None,
                                    contrast_file:str=None,
                                    design_file:str=None):
@@ -365,6 +367,8 @@ class Generateids:
             id_prefix=''
         if id_suffix is None:
             id_suffix=''
+        if sort_id:
+            ID_pd=ID_pd.sort_values(ID_pd.columns[0])
         name_file = ID_pd.iloc[:,0].apply(lambda x:id_prefix+x.replace('/','_')+id_suffix+'.mif')
         ID_list = name_file.tolist()
         if isinstance(ID_file,str):
@@ -496,6 +500,7 @@ if __name__ == '__main__':
                                                negative=args.neg,
                                                id_prefix=args.id_prefix,
                                                id_suffix=args.id_suffix,
+                                               sort_id=args.sort_id,
                                                ID_file=args.out_ID,
                                                contrast_file=args.out_contrast,
                                                design_file=args.out_design)
