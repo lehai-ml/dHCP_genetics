@@ -77,6 +77,16 @@ function run {
       else
 	cmd+=(tmp-$arg)
       fi	      
+    elif [[ $arg == OUT-name:* ]]; then
+        arg=${arg#OUT-name:}
+        mapfile -t pos_output < <( find . -maxdepth 1 -name "*${arg}*" | cut -c3- )
+        if [ ${#pos_output[@]} -gt 0 ];then
+	    outputs+=${pos_output[@]}
+	    cmd+=(tmp-$arg)
+        else
+	    outputs+=""
+	    cmd+=($arg)
+        fi
     else
       cmd+=($arg)
     fi
@@ -94,6 +104,8 @@ function run {
       if [ -d $out ]; then continue; fi; # if the folder already existed, continue
       if [[ $out == */* ]]; then # if it is a first-time folder, then append tmp- to the file.
         mv $(echo ${out%\/*}"/tmp-"${out##*\/}) $out
+      elif [[ $out == "" ]]; then
+	continue
       else
         #sometimes the file is output to a folder, not the current one 
 	( mv tmp-$out $out  2>/dev/null ) || 

@@ -17,22 +17,23 @@ cd $output_folder/$output_tractography
 #  --out_design OUT:$fba_output/$design_matrix \
 #  --out_contrast OUT:$fba_output/$contrast_matrix
 
-run 'getting contrast and design matrices' \
-  python $src/generate_ID_list.py matrix \
-  --file IN:$src/$subjects_list --sep , \
-  --categorical 1 \
-  --catnames sex \
-  --continuous 2 3 6 7 8 9\
-  --contnames PMA GA C_allele euro_Anc_PC1 euro_Anc_PC2 euro_Anc_PC3\
-  --standardize \
-  --contrast C_allele \
-  --out_ID OUT:$fba_output/$id_file \
-  --out_design OUT:$fba_output/$design_matrix \
-  --out_contrast OUT:$fba_output/$contrast_matrix
-
-sanity_check sub $fba_output/$id_file $src/$output_folder/$all_subj_fd $src/$output_folder/$all_subj_fc $src/$output_folder/$all_subj_log_fc $src/$output_folder/$all_subj_fdc
-
-fba_measures_to_examine=( fd fdc log_fc )
+#run 'getting contrast and design matrices' \
+#  python $src/generate_ID_list.py matrix \
+#  --file IN:$src/$subjects_list --sep , \
+#  --categorical 1 \
+#  --catnames sex \
+#  --continuous 2 3 6\
+#  --contnames PMA GA C_allele\
+#  --standardize \
+#  --contrast C_allele \
+#  --neg \
+#  --out_ID OUT:$fba_output/$id_file \
+#  --out_design OUT:$fba_output/$design_matrix \
+#  --out_contrast OUT:$fba_output/$contrast_matrix
+#
+#sanity_check sub $fba_output/$id_file $src/$output_folder/$all_subj_fd $src/$output_folder/$all_subj_fc $src/$output_folder/$all_subj_log_fc $src/$output_folder/$all_subj_fdc
+#
+fba_measures_to_examine=( fd )
 
 for fba_measure in ${fba_measures_to_examine[@]}; do
     update_folder_if_needed run "'smoothing $fba_measure data'" \
@@ -40,9 +41,17 @@ for fba_measure in ${fba_measures_to_examine[@]}; do
 done
 
 #statistical analysis FD, log(FC) and FDC fixelfestats
+#
+#for fba_measure in ${fba_measures_to_examine[@]}; do
+#    update_folder_if_needed run "'calculating fixelcfestats $fba_measure'" \
+#        fixelcfestats IN:$fba_output/all_subj_${fba_measure}_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/stats_${fba_measure}
+#    run 'copy design summary' copy_header IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix OUT:$fba_output/stats_${fba_measure}/$summary_contrast
+#done
+#
 
 for fba_measure in ${fba_measures_to_examine[@]}; do
-    update_folder_if_needed run "'calculating fixelcfestats $fba_measure'" \
-        fixelcfestats IN:$fba_output/all_subj_${fba_measure}_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/$ffixel_matrix OUT:$fba_output/stats_${fba_measure}
+    update_folder_if_needed run "'calculating fixelcfestats $fba_measure -ftest only'" \
+        fixelcfestats -ftests IN:$fba_output/ftest.txt -fonly IN:$fba_output/all_subj_${fba_measure}_smooth IN:$fba_output/$id_file IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix IN:$fba_output/${ffixel_matrix} OUT:$fba_output/stats_${fba_measure}
     run 'copy design summary' copy_header IN:$fba_output/$design_matrix IN:$fba_output/$contrast_matrix OUT:$fba_output/stats_${fba_measure}/$summary_contrast
 done
+

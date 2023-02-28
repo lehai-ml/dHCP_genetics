@@ -107,6 +107,14 @@ dt_adc=dt_adc.mif
 dt_rd=dt_rd.mif
 dt_ad=dt_ad.mif
 
+common_wm_fod_40weeks_by_Alena=$src/wm_parcellation/parcellation_maps_05mm/common_space_ODF_4000.mif
+native2wm_parc_warp=native2wm_parc_warp.mif
+wm_parc2native_warp=wm_parc2native_warp.mif
+wm_parcellation_by_Alena=$src/wm_parcellation/parcellation_maps_05mm/reference-05mm-WM-parcellation.nii.gz
+subject_wm_parc=wm_parc_in_subject_space.mif
+
+
+
 DTI_in_template_space=DTI_in_template_space
 
 dti_stats=dti_stats
@@ -179,9 +187,9 @@ cd $src
 cd $src
 #. tractography.sh
 cd $src
-. perform_fba.sh
+#. perform_fba.sh
 cd $src
-#. calculate_dti.sh
+. calculate_dti.sh
 cd $src
 #. perform_tbss.sh
 cd $src
