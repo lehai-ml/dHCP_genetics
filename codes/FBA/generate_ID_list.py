@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
 import argparse
-import pandas as pd
-import numpy as np
 from typing import List
 import glob
 import sys
 from collections import defaultdict
+import pandas as pd
+import numpy as np
 
 def main():
 
@@ -312,6 +312,7 @@ class Generateids:
                                    continuousVariable:List[int]=None,
                                    standardize:bool=True,
                                    contrast:int=None,
+                                   f_stats:bool=False,
                                    categorical_Names:List[str]=None,
                                    continuous_Names:List[str]=None,
                                    negative:bool=False,
@@ -320,7 +321,8 @@ class Generateids:
                                    sort_id:bool=False,
                                    ID_file:str=None,
                                    contrast_file:str=None,
-                                   design_file:str=None):
+                                   design_file:str=None,
+                                   f_file:str=None,):
         """
         Parameters
         ----------
@@ -386,14 +388,18 @@ class Generateids:
             for category,name in zip(categoricalVariable,categorical_Names):
                 temp_category = pd.get_dummies(ID_pd.iloc[:,category],dtype=int)
                 temp_category.columns = [f'{name}_{i}' for i in temp_category.columns.tolist()]
-                temp_category[temp_category==0] = -1
-                column_name = f'{temp_category.columns[0]}=1'
-                temp_category.columns = [column_name] + [temp_category.columns[1]]
-                category_pd = pd.concat([category_pd,temp_category.iloc[:,0]],axis=1)
-                
+                #selecting one variable as the reference data
+                #in the other columns, where the rows in which the reference 
+                # data appears, is set to -1. see https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/GLM#ANOVA:_1-factor_4-levels__.281-way_between-subjects_ANOVA.29 
+                #here the first column is selected as the reference.
+                reference_column = temp_category.columns[0]
+                for col in temp_category.columns[1:]:
+                    temp_category[col] = [-1 if temp_category.loc[idx,reference_column] == 1 else temp_category.loc[idx,col] for idx in temp_category.index]
+                category_pd = pd.concat([category_pd,temp_category.iloc[:,1:]],axis=1)
         else:
             categoricalVariable = []
             category_pd = pd.DataFrame()
+
         if isinstance(continuousVariable,list):
             if not isinstance(continuous_Names,list):
                 continuous_Names = [f'Continuous_{i}' for i in continuousVariable]
@@ -408,6 +414,16 @@ class Generateids:
         design_pd = pd.concat([design_pd,category_pd,continuous_pd],axis=1)
         independentVariable=categoricalVariable+continuousVariable
         independentVariable_names = design_pd.columns.tolist()[1:]
+        
+        if isinstance(design_file,str):
+            design_pd = design_pd.astype('str')
+            design_matrix = [' '.join(design_pd.iloc[row,:].tolist()) for row in range(len(design_pd))]
+            with open(design_file,'w') as f:
+                f.writelines(['#']+[str(i)+' ' for i in design_pd.columns])
+                f.writelines('\n')
+                for line in design_matrix:
+                    f.writelines(line)
+                    f.writelines('\n')
         
         contrast_matrix = []
         if isinstance(contrast,list):
