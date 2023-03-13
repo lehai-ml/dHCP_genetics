@@ -424,11 +424,11 @@ class Generateids:
                 for line in design_matrix:
                     f.writelines(line)
                     f.writelines('\n')
-        
+
         contrast_matrix = []
         if isinstance(contrast,list):
-            if contrast[0].isdigit():
-                contrast = [int(i) for i in contrast]
+            if (all(items.isdigit() for items in contrast)):
+                contrast = [int(i) for i in contrast] #defining contrast as list of intergers
                 for hypothesis in contrast:
                     contrast_matrix_temp = [0 for i in range(len(independentVariable) +1 )]
                     contrast_id = [idx for idx,i in enumerate(independentVariable) if i == hypothesis]
