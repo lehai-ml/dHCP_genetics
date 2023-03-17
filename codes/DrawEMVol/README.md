@@ -1,4 +1,4 @@
-Read this markdown on [Github]()
+Read this markdown on [Github](https://github.com/lehai-ml/dHCP_genetics/tree/main/codes/DrawEMVol)
 
 This folder contains scripts necessary for volumetric analysis
 
