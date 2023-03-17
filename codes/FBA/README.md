@@ -1,4 +1,5 @@
 Read this markdown on [Github](https://github.com/lehai-ml/dHCP_genetics/tree/main/codes/FBA)
+
 This folder contains several scripts and folders, they are summarised as follows:
 
 # Script files
@@ -19,6 +20,7 @@ This folder contains several scripts and folders, they are summarised as follows
  See the [MRtrix3 FBA pipeline](https://mrtrix.readthedocs.io/en/0.3.16/workflows/fixel_based_analysis.html)
 
 4. TBSS-related files
+
 |File| Description|
 |----|------------|
 |<code>perform_tbss.sh</code> | Use to perform TBSS in babies. Uses DTI-TK and FSL |
@@ -27,6 +29,7 @@ See [DTI-TK preprocessing and registration tutorial](https://dti-tk.sourceforge.
 See [FSL TBSS User Guide](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/TBSS/UserGuide)
 
 5. Tract-based or Atlas-based statistics files
+
 |File| Description |
 |----|-------------|
 |```perform_aba.sh``` | Register individual FODs map to neonatal WM atlases and calculate mean value for each ROI|
@@ -36,6 +39,7 @@ See [Alena Uss Paper](https://www.frontiersin.org/articles/10.3389/fnins.2021.66
 The atlas is downloaded [here](https://gin.g-node.org/alenaullauus/4d_multi-channel_neonatal_brain_mri_atlas)
 
 6. Other files
+
 |File| Description |
 |----|-------------|
 |```generate_ID_list.py```|Python command used to generate ID list as well as design and contrast matrices|
@@ -92,8 +96,9 @@ output/
 |<code>atlas</code>|<code>projects/perinatal/peridata/Hai/atlas/</code>|contains 40 weeks extended templates and warps |
 
 2. User-defined text files
-|File|Description|```variable```|Note|
-|----|-----------|--------------|----|
+
+|File|Description|
+|----|-----------|
 |```subjects.txt```|comma separated file, where the first column is sub-id/ses, can be generated with ```generate_ID_list.sh```,required for ```process.sh```|
 |```wm_tract.txt```|use with function ```generate_wm_tract```, see below|
 
