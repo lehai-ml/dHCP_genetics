@@ -359,7 +359,8 @@ class Volumes:
                 
         
         @staticmethod
-        def get_Imperial_legends(grouping:[list,str]=None)->dict:
+        def get_Imperial_legends(grouping:[list,str]=None,
+                                 df:[pd.DataFrame,list]=None,**kwargs)->dict:
             """
             Generate Imperial legends. May be used for visualisation.Brainmap
 
@@ -546,8 +547,21 @@ class Volumes:
                         if 'hemisphere' in grouping:
                             if label_dict[k]['side'] is not None:
                                 label_dict[k]['abbr'] = label_dict[k]['abbr'].replace('.'+label_dict[k]['side'],'')
-
-            return label_dict
+            if df is not None:
+                #if dataframe is passed, it will try to change the names of where the columns with Imperial are
+                if isinstance(df,pd.DataFrame):
+                    col = kwargs.get('col','index')
+                    if col == 'index' or col == 'columns':
+                        return df.rename({k:v['abbr'] for k,v in label_dict.items()},axis=col)
+                    else:
+                        df[col] = df[col].map({k:v['abbr'] for k,v in label_dict.items()})
+                        return df
+                elif isinstance(df,list):
+                    return [label_dict[k]['abbr'] for k in df]
+                else:
+                    raise TypeError('df must be dataframe or list of strings')
+            else:
+                return label_dict
 
         def group_Imperial_volumes(df:pd.DataFrame,grouping:[list,str]=None,
                                    operation:str='sum',drop_duplicates:bool=True):
@@ -587,22 +601,25 @@ class Volumes:
                 raise TypeError('Needs pandas DataFrame')
             new_df = df.copy()
             grouped_volumes_dict = Volumes.Imperial.get_Imperial_legends(grouping)
-            grouped_volumes_dict = {k:v['abbr'] for k,v in grouped_volumes_dict.items() if k in new_df.columns}#{'Imperial 1:'hipp.R'}
+            grouped_volumes_dict = {k:v['abbr'] for k,v in grouped_volumes_dict.items() if k in new_df.columns}#{'Imperial 1:'hipp.L'}
             unique_grouped_volumes_dict = defaultdict(list)
             for k,v in grouped_volumes_dict.items():
                 unique_grouped_volumes_dict[v].append(k)
             for k,v in unique_grouped_volumes_dict.items():
-                if len(v) > 1:
-                    if operation == 'sum':
-                        new_df[v[0]] = df[v].sum(axis=1)
-                    elif operation == 'mean':
-                        new_df[v[0]] = df[v].mean(axis=1)
-                    if drop_duplicates:
-                        new_df = new_df.drop(columns=[i for i in df.columns if i in v[1:]])
-                    else:
-                        for col in v[1:]:
-                            if col in df.columns:
-                                new_df[col] = new_df[v[0]]
+                if k is None:
+                    new_df = new_df.drop(columns = v)
+                else:
+                    if len(v) > 1:
+                        if operation == 'sum':
+                            new_df[v[0]] = df[v].sum(axis=1)
+                        elif operation == 'mean':
+                            new_df[v[0]] = df[v].mean(axis=1)
+                        if drop_duplicates:
+                            new_df = new_df.drop(columns=[i for i in df.columns if i in v[1:]])
+                        else:
+                            for col in v[1:]:
+                                if col in df.columns:
+                                    new_df[col] = new_df[v[0]]
             return new_df
             
                 
