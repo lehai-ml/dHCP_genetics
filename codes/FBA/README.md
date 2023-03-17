@@ -33,6 +33,7 @@ See [FSL TBSS User Guide](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/TBSS/UserGuide)
 |File| Description |
 |----|-------------|
 |```perform_aba.sh``` | Register individual FODs map to neonatal WM atlases and calculate mean value for each ROI|
+|```genwmtracts.sh``` | Generate WM tracts |
 |```perform_fba_wm.sh```| Perform fixelcfestats individual tracts|
 
 See [Alena Uss Paper](https://www.frontiersin.org/articles/10.3389/fnins.2021.661704/full)
@@ -94,6 +95,7 @@ output/
 |<code>data</code>|<code>dhcp-pipeline-data/kcl/diffusion/ShardRecond04_dstriped/</code>|contains DWI data <code>postmc_dstriped-dwi300.mif</code> and bet mask <code>mask_T2w_brainmask_processed.nii.gz</code>|
 |<code>dhcp_neo_dMRI_derived</code>|<code>/projects/perinatal/peridata/Hai/dhcp_neo_dMRI_derived</code>| contains warps in 40 weeks <code>fron-dmirshard_to-extdhcp40wk_mode-image.mif.gz</code>, wm and csf response function <code>dHCP_atlas_v2.1_rf_wm.dhsfa015_44</code> and <code>dHCP_atlas_v2.1_rf_csf.dhsfa015</code>|
 |<code>atlas</code>|<code>projects/perinatal/peridata/Hai/atlas/</code>|contains 40 weeks extended templates and warps |
+|```wm_parcellation```|Downloaded from [here](https://gin.g-node.org/alenaullauus/4d_multi-channel_neonatal_brain_mri_atlas)||
 
 2. User-defined text files
 

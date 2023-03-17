@@ -49,3 +49,8 @@ codes/gene_set/PRSice/genetic_dataset
 codes/DrawEMVol/generate_ID_list.py
 codes/DrawEMVol/support_functions.sh
 codes/FBA/wm_parcellation
+codes/DrawEMVol/Jacobians
+codes/DrawEMVol/mask.nii.gz
+codes/DrawEMVol/output/all_Jacobians.nii.gz
+codes/DrawEMVol/output/
+codes/DrawEMVol/week40_T2w.nii.gz
