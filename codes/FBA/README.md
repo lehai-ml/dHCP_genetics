@@ -3,27 +3,28 @@ Read this markdown on [Github](https://github.com/lehai-ml/dHCP_genetics/tree/ma
 This folder contains several scripts and folders, they are summarised as follows:
 
 # Script files
-1. <code>process.sh</code> : This is where all the variables are defined. It is also the only executable sh file. All the individual scripts are called in here.
-2. <code>support_functions.sh</code> : This file contains all the support functions used in the scripts. For instance, run function can be used to check if the command should be executed or not.
+1. ```process.sh``` : This is where all the variables are defined. It is also the only executable sh file. All the individual scripts are called in here.
+2. ```support_functions.sh``` : This file contains all the support functions used in the scripts. For instance, run function can be used to check if the command should be executed or not.
 3. FBA-related files: See individual files for description of each command
 
 |File| Description |
 |----|-------------|
 |```generate_ID_list.sh```|Used to call ```generate_ID_list.py```|
-|<code>calculate_fods.sh</code>| Calculate FODs | 
-|<code>compute_average_masks_and_fods.sh</code>| Create a mean FOD map and mask and convert FODs to fixel |
-|<code>calculate_fixel_metrics.sh</code>| Register to FODs to common template and calculate fixel measures |
-|<code>gen5tt.sh</code>| Generate 5 tissue map |
-|<code>tractography.sh</code>| Perform tractography and calculate fixel2fixel connectivity|
-|<code>perform_fba.sh</code>| Perform fixelcfestats whole-brain|
+|```calculate_fods.sh```| Calculate FODs | 
+|```compute_average_masks_and_fods.sh```| Create a mean FOD map and mask and convert FODs to fixel |
+|```calculate_fixel_metrics.sh```| Register to FODs to common template and calculate fixel measures |
+|```gen5tt.sh```| Generate 5 tissue map |
+|```tractography.sh```| Perform tractography and calculate fixel2fixel connectivity|
+|```perform_fba.sh```| Perform fixelcfestats whole-brain|
  
  See the [MRtrix3 FBA pipeline](https://mrtrix.readthedocs.io/en/0.3.16/workflows/fixel_based_analysis.html)
 
-4. TBSS-related files
+4. TBSS-related or FSL randomise related files
 
 |File| Description|
 |----|------------|
-|<code>perform_tbss.sh</code> | Use to perform TBSS in babies. Uses DTI-TK and FSL |
+|```perform_tbss.sh``` | Use to perform TBSS in babies. Uses DTI-TK and FSL |
+|```calculate_dti.sh```|Calculate tensor metrics using MRtrix3|
 
 See [DTI-TK preprocessing and registration tutorial](https://dti-tk.sourceforge.net/pmwiki/pmwiki.php?n=Documentation.HomePage)
 See [FSL TBSS User Guide](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/TBSS/UserGuide)
@@ -46,8 +47,8 @@ The atlas is downloaded [here](https://gin.g-node.org/alenaullauus/4d_multi-chan
 |```generate_ID_list.py```|Python command used to generate ID list as well as design and contrast matrices|
 
 # Folders: Input and output files
-To keep everything tidy. Make sure every file is defined in the <code>process.sh</code> file and only the <code>process.sh</code> is executed.
-The output for each script command is more or less shown in the <code>process.sh</code> or in their individual scripts. Generally, main output for a particular analysis is defined in as <code>output</code> in the same directory where <code>process.sh</code> is executed.
+To keep everything tidy. Make sure every file is defined in the ```process.sh``` file and only the ```process.sh``` is executed.
+The output for each script command is more or less shown in the ```process.sh``` or in their individual scripts. Generally, main output for a particular analysis is defined in as ```output``` in the same directory where ```process.sh``` is executed.
 
 **NB: for obvious reasons these files are not commited to github.**
 
@@ -77,6 +78,8 @@ output/
 |    |    {csf,wm}_{norm}_fod.mif
 |    |    warped_{mask,wm_fod}_in_dHCP_40wk.mif
 |    |    fod_in_template_space_NOT_REORIENTED.mif
+|    |    wm_parc2native_warp.mif
+|    |    wm_parc_in_subject_space.mif
 |    |____fixel_in_template_space_{NOT_REORIENTED}/
 |____tbss/
 |____|____sub-CC00*/ses*/
@@ -92,9 +95,9 @@ output/
 
 | Folder |Linked from |Description |
 |--------|------------|------------|
-|<code>data</code>|<code>dhcp-pipeline-data/kcl/diffusion/ShardRecond04_dstriped/</code>|contains DWI data <code>postmc_dstriped-dwi300.mif</code> and bet mask <code>mask_T2w_brainmask_processed.nii.gz</code>|
-|<code>dhcp_neo_dMRI_derived</code>|<code>/projects/perinatal/peridata/Hai/dhcp_neo_dMRI_derived</code>| contains warps in 40 weeks <code>fron-dmirshard_to-extdhcp40wk_mode-image.mif.gz</code>, wm and csf response function <code>dHCP_atlas_v2.1_rf_wm.dhsfa015_44</code> and <code>dHCP_atlas_v2.1_rf_csf.dhsfa015</code>|
-|<code>atlas</code>|<code>projects/perinatal/peridata/Hai/atlas/</code>|contains 40 weeks extended templates and warps |
+|```data```|```dhcp-pipeline-data/kcl/diffusion/ShardRecond04_dstriped/```|contains DWI data ```postmc_dstriped-dwi300.mif``` and bet mask ```mask_T2w_brainmask_processed.nii.gz```|
+|```dhcp_neo_dMRI_derived```|```/projects/perinatal/peridata/Hai/dhcp_neo_dMRI_derived```| contains warps in 40 weeks ```fron-dmirshard_to-extdhcp40wk_mode-image.mif.gz```, wm and csf response function ```dHCP_atlas_v2.1_rf_wm.dhsfa015_44``` and ```dHCP_atlas_v2.1_rf_csf.dhsfa015```|
+|```atlas```|```projects/perinatal/peridata/Hai/atlas/```|contains 40 weeks extended templates and warps |
 |```wm_parcellation```|Downloaded from [here](https://gin.g-node.org/alenaullauus/4d_multi-channel_neonatal_brain_mri_atlas)||
 
 2. User-defined text files
@@ -103,6 +106,24 @@ output/
 |----|-----------|
 |```subjects.txt```|comma separated file, where the first column is sub-id/ses, can be generated with ```generate_ID_list.sh```,required for ```process.sh```|
 |```wm_tract.txt```|use with function ```generate_wm_tract```, see below|
+|```output/tbss/DTI_TK_processed/ID_template```|List of ```dti_res.nii.gz``` files that will be used to create template|
+
+3. Output files in individual folders
+
+|File|Found in|
+|----|--------|
+|```mask.mif```|```calculate_fods.sh```|
+|```{csf,wm}_fod.mif```|```calculate_fods.sh```|
+|```warped_{mask,wm_fod}_in_dHCP_40wk.mif```|```compute_average_masks_and_fods.sh```|
+|```average2native_warp.mif```|```calculate_fixel_metrics.sh```|
+|```native2average_warp.mif```|```calculate_fixel_metrics.sh```|
+|```fixel_in_template_space```|```calculate_fixel_metrics.sh```|
+|```fixel_in_template_space_NOT_REORIENTED```|```calculate_fixel_metrics.sh```|
+|```fod_in_template_space_NOT_REORIENTED```|```calculate_fixel_metrics.sh```|
+|```wm_parc2native_warp.mif```|```perform_aba.sh```|
+|```wm_parc_in_subject_space.mif```|```perfomr_aba.sh```|
+|```diffusion_tensor.mif```|```calculate_dti.sh```|
+|```dt_{fa,adc,rd,ad}```|
 
 # Support functions explained
 

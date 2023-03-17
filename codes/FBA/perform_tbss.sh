@@ -1,13 +1,5 @@
 #!/bin/bash
 
-dwi=postmc_dstriped-dwi.nii.gz
-bval=postmc_dstriped-dwi.bval
-bvec=postmc_dstriped-dwi.bvec
-bet_mask=mask_T2w_brainmask_processed.nii.gz
-ID_template=ID_template.txt
-all_subjects_dti=all_subjects_dti.txt
-DTI_TK_processed=DTI_TK_processed
-stats_folder=stats
 
 #######Template variables#######
 mean_initial_template=mean_initial_template.nii.gz
@@ -24,7 +16,7 @@ cd $ID
 id_ses=$(echo $ID | sed 's/\//_/')
 
 run 'calculate DTI using FSL' \
-	dtifit -k IN:$src/$dwi_data/$ID/$dwi -m IN:$src/$dwi_data/$ID/$bet_mask -r IN:$src/$dwi_data/$ID/$bvec -b IN:$src/$dwi_data/$ID/$bval -o OUT-name:dti
+	dtifit -k IN:$src/$dwi_data/$ID/$dwi_nii -m IN:$src/$dwi_data/$ID/$bet_mask -r IN:$src/$dwi_data/$ID/$bvec -b IN:$src/$dwi_data/$ID/$bval -o OUT-name:dti
 
 if [ ! -f dti_dtitk.nii.gz ]; then
    echo 'convert to DTI-TK compatible format'
