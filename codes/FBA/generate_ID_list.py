@@ -52,6 +52,8 @@ def main():
     id_matrix.add_argument('--id_prefix',help='assign prefix to the IDs in the ID file',type=str)
     id_matrix.add_argument('--id_suffix',help='assign suffix to the IDs in the ID file',type=str)
     id_matrix.add_argument('--sort_id',help='sort the ids alphabeto-numerically',action='store_true')
+    id_matrix.add_argument('--intercept',help='add columns of intercepts',action='store_true')
+    id_matrix.add_argument('--no-intercept',dest='intercept',action='store_false')
     id_matrix.add_argument('--out_ID',help='output for ID file')
     id_matrix.add_argument('--out_design',help='output for design matrix')
     id_matrix.add_argument('--out_contrast',help='output for contrast matrix')
@@ -311,6 +313,7 @@ class Generateids:
                                    categoricalVariable:List[int]=None,
                                    continuousVariable:List[int]=None,
                                    standardize:bool=True,
+                                   intercept=True,
                                    contrast:int=None,
                                    f_stats:bool=False,
                                    categorical_Names:List[str]=None,
@@ -410,10 +413,12 @@ class Generateids:
         else:
             continuousVariable = []
             continuous_pd = pd.DataFrame()
-        design_pd['intercept'] = [1 for i in range(len(ID_pd))]
+        
+        if intercept:
+            design_pd['intercept'] = [1 for i in range(len(ID_pd))]
         design_pd = pd.concat([design_pd,category_pd,continuous_pd],axis=1)
-        independentVariable=categoricalVariable+continuousVariable
-        independentVariable_names = design_pd.columns.tolist()[1:]
+        independentVariable=['intercept'] + categoricalVariable+continuousVariable if intercept else categoricalVariable + continuousVariable
+        independentVariable_names = design_pd.columns.tolist()
         
         if isinstance(design_file,str):
             design_pd = design_pd.astype('str')
@@ -430,13 +435,13 @@ class Generateids:
             if (all(items.isdigit() for items in contrast)):
                 contrast = [int(i) for i in contrast] #defining contrast as list of intergers
                 for hypothesis in contrast:
-                    contrast_matrix_temp = [0 for i in range(len(independentVariable) +1 )]
+                    contrast_matrix_temp = [0 for i in range(len(independentVariable))]
                     contrast_id = [idx for idx,i in enumerate(independentVariable) if i == hypothesis]
-                    contrast_matrix_temp[contrast_id[0]+1] = 1
+                    contrast_matrix_temp[contrast_id[0]] = 1
                     contrast_matrix.append(contrast_matrix_temp)
             else:
                 for hypothesis in contrast:
-                    contrast_matrix_temp = [0 for i in range(len(independentVariable_names) +1 )]
+                    contrast_matrix_temp = [0 for i in range(len(independentVariable_names))]
                     contrast_id = [idx for idx,i in enumerate(independentVariable_names) if i == hypothesis]
                     if len(contrast_id) == 0: # if nothing is in it
                         #this happens if it is categorical var
@@ -444,9 +449,9 @@ class Generateids:
                     if len(contrast_id) > 1:
                         raise ValueError('the term of interest is repeating more than once')
                     if negative: # test opposite hypothesis
-                        contrast_matrix_temp[contrast_id[0]+1] = -1
+                        contrast_matrix_temp[contrast_id[0]] = -1
                     else:
-                        contrast_matrix_temp[contrast_id[0]+1] = 1
+                        contrast_matrix_temp[contrast_id[0]] = 1
                     contrast_matrix.append(contrast_matrix_temp)
             
         if isinstance(contrast_file,str):
@@ -510,6 +515,7 @@ if __name__ == '__main__':
                                                categoricalVariable=args.categorical,
                                                continuousVariable=args.continuous,
                                                standardize=args.standardize,
+                                               intercept=args.intercept,
                                                contrast=args.contrast,
                                                categorical_Names=args.catnames,
                                                continuous_Names=args.contnames,
