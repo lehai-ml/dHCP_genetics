@@ -7,8 +7,8 @@ PRSice_bin=PRSice_linux
 
 output_folder=output
 
-#base_file=$src/$genetic_data/base_files/asd/preprocessed_iPSYCH-PGC_ASD_Nov2017.gz
-base_file=$src/$genetic_data/base_files/scz/PGC3_SCZ_short.filtered_and_noambiguous_alt2.gz
+base_file=$src/$genetic_data/base_files/asd/preprocessed_iPSYCH-PGC_ASD_Nov2017.gz
+#base_file=$src/$genetic_data/base_files/scz/PGC3_SCZ_short.filtered_and_noambiguous_alt2.gz
 target_files=$src/$genetic_data/target_files/euro_batch2_genotyped #set of files containing .bed .bim .fam
 gene_build=$src/$genetic_data/$gene_build
 #Ensemblegtf=Homo_sapiens.GRCh37.87.gtf
@@ -59,7 +59,7 @@ Rscript ./$PRSice_script\
 	--stat OR\
 	--ld $ld_files\
 	--target $target_files \
-	--out $src/$output_folder/scz/PRS_100 \
+	--out $src/$output_folder/asd/ASD \
 	--no-regress \
-	--extract $src/$output_folder/scz/PRS.valid
+	--extract $src/$output_folder/asd/ASD.valid
 

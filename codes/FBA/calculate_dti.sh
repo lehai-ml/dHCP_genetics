@@ -35,13 +35,13 @@ id_ses=$(echo $ID | sed 's/\//_/')
 #    mrtransform IN:$dt_fa -warp IN:$src/$warps/$ID/$id_ses"_"$warps_in_40wk -interp cubic - \| mrconvert - OUT:$src/$output_folder/$dti_stats/$DTI_in_template_space/${id_ses}_fa.nii.gz 
 #
 
-run 'registering individual FOD to WM FOD parcellation space' \
-    mrregister IN:$wm_norm_fod IN:$common_wm_fod_40weeks_by_Alena -mask1 IN:$mask -nl_warp OUT:$native2wm_parc_warp OUT:$wm_parc2native_warp
-
-run 'transforming wm parcellation to subject space' \
-    mrtransform IN:$wm_parcellation_by_Alena -warp IN:$wm_parc2native_warp -interp nearest OUT:${subject_wm_parc}
-
-dti_to_measure=( fa )
+#run 'registering individual FOD to WM FOD parcellation space' \
+#    mrregister IN:$wm_norm_fod IN:$common_wm_fod_40weeks_by_Alena -mask1 IN:$mask -nl_warp OUT:$native2wm_parc_warp OUT:$wm_parc2native_warp
+#
+#run 'transforming wm parcellation to subject space' \
+#    mrtransform IN:$wm_parcellation_by_Alena -warp IN:$wm_parc2native_warp -interp nearest OUT:${subject_wm_parc}
+#
+#dti_to_measure=( fa )
 for dti in ${dti_to_measure[@]} ; do
     mean_value=()
     for tract in {94..147}; do
@@ -81,9 +81,9 @@ done
 #run 'generate WM mask ' \
 #    mrgrid IN:$src/$output_folder/$output_5TT/$wm regrid -template IN:all_FA.nii.gz -interp nearest - \| mrthreshold - -abs 50 - \| mrconvert - OUT:regrided_wm_mask.nii.gz
 #
-#run 'perform FSL VBA' \
-#    randomise -i IN:all_FA.nii.gz -o OUT-name:ICV -d IN:design.mat -t IN:design.con -m IN:regrided_wm_mask.nii.gz -T -n 1000
-#
+run 'perform FSL VBA' \
+    randomise -i IN:all_FA.nii.gz -o OUT-name:ICV -d IN:design.mat -t IN:design.con -m IN:regrided_wm_mask.nii.gz -T -n 1000
+
 ##run 'perform Clusterstats' \
 ##   mrgrid IN:$src/$output_folder/$output_5TT/$wm regrid -template IN:$src/$output_folder/$warped_wm_fod_average -interp nearest - \| mrthreshold - -abs 50 - \| mrclusterstats IN:$id_file IN:$design_matrix IN:$contrast_matrix - OUT-name:test -notest
 #

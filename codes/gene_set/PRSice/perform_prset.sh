@@ -9,14 +9,12 @@ target_files=$src/$genetic_data/target_files/lifted37_dHCP_merged_cleaned_EUROPE
 gene_build=$src/$genetic_data/gene_build/NCBI37.3.gene.loc
 msigdb=$src/$genetic_data/pathway_database/MSigDB/MSigDB_custom_entrez.gmt
 
-. support_functions.sh
 
-run 'performing PRSet' \
 Rscript $PRSice_script \
 	--prsice $PRSice_bin \
-	--base IN:$base_file\
-	--target IN:$target_files\
+	--base $base_file\
+	--target $target_files\
 	--binary-target T\
 	--thread 1\
-	--gtf IN:$gene_build \
+	--gtf $gene_build \
 	--msigdb
