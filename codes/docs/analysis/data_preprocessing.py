@@ -276,7 +276,7 @@ class Volumes:
                 temporal_lobes = [f'Imperial {i}' for i in [5,6,7,8,11,12,13,14,28,29,30,31,
                                                            51,52,53,54,57,58,59,60,71,72,73,74]]
                 frontal_lobes = [f'Imperial {i}' for i in [36,37,79,80]]
-                occipital_lobes = [f'Imperial {i}' for i in [22,23,65,66,61,62,69,70,26,27]]
+                occipital_lobes = [f'Imperial {i}' for i in [15,16,22,23,65,66,61,62,69,70,26,27]]
                 parietal_lobes = [f'Imperial {i}' for i in [38,39,81,82]]
 
                 ###side
@@ -359,7 +359,7 @@ class Volumes:
                 
         
         @staticmethod
-        def get_Imperial_legends(grouping:[list,str]=None,
+        def get_Imperial_legends(grouping:[list,tuple,str]=None,
                                  df:[pd.DataFrame,list]=None,**kwargs)->dict:
             """
             Generate Imperial legends. May be used for visualisation.Brainmap
@@ -527,7 +527,7 @@ class Volumes:
 
             if isinstance(grouping,str):
                 grouping = [grouping]
-            if isinstance(grouping,list):#{lobe}
+            if isinstance(grouping,(list,tuple)):#{lobe}
                 if 'lobe' in grouping: # replace the structure name with lobe
                     for k in label_dict:
                         if label_dict[k]['lobe'] is None:
@@ -563,7 +563,7 @@ class Volumes:
             else:
                 return label_dict
 
-        def group_Imperial_volumes(df:pd.DataFrame,grouping:[list,str]=None,
+        def group_Imperial_volumes(df:pd.DataFrame,grouping:[list,tuple,str]=None,
                                    operation:str='sum',drop_duplicates:bool=True):
             """
             Group Imperial Volume by summing them.
