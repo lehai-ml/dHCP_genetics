@@ -54,3 +54,4 @@ codes/DrawEMVol/mask.nii.gz
 codes/DrawEMVol/output/all_Jacobians.nii.gz
 codes/DrawEMVol/output/
 codes/DrawEMVol/week40_T2w.nii.gz
+*.pdf
