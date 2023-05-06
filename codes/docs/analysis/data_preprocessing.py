@@ -128,97 +128,259 @@ class Diffusion:
         nodes = list(dict.fromkeys(nodes2+nodes1))
         return nodes
         
-    
-    
+    class WM_parcellation:
+        @staticmethod
+        def get_segment(df:Union[pd.DataFrame,List,dict],col:str='column',
+                        **kwargs):
+            if 'side' not in kwargs:
+                kwargs['side'] = []
+            if isinstance(kwargs['side'],str):
+                kwargs['side'] = [kwargs['side']]
+            def return_segment(WM_parc,tissues:list=None):
+                left = [f'wm_{i}' for i in range(94,137,2)]+[f'wm_{i}' for i in range(139,142,2)]
+                right = [f'wm_{i}' for i in range(95,138,2)]+[f'wm_{i}' for i in range(140,143,2)]
+                all_tissues = []
+                for tissue in tissues:
+                    if tissue == 'left':
+                        all_tissues += [i for i in WM_parc if i in left]
+                    elif tissue == 'right':
+                        all_tissues += [i for i in WM_parc if i in right]
+                return list(set(all_tissues))
+            
+            if isinstance(df,list):
+                segments_to_examine = df
+            elif isinstance(df,pd.DataFrame):
+                if isinstance(col,str):
+                    if col == 'index':
+                        segments_to_examine = df.index.tolist()
+                    elif col == 'column':
+                        segments_to_examine = df.columns.tolist()
+                    else:
+                        segments_to_examine = df[col].tolist()
+                else:
+                    raise ValueError('col must be defined if parsing dataframe')
+            elif isinstance(df,dict):
+                segments_to_examine = [i for i in df.keys()]
+            
+            if len(kwargs['side'])>=1:
+                segments_to_examine = return_segment(segments_to_examine,tissues=kwargs['side'])
+            
+            segments_to_examine = sorted(segments_to_examine)
+            if isinstance(df,list):
+                return segments_to_examine
+            elif isinstance(df,pd.DataFrame):
+                if isinstance(col,str):
+                    if col == 'index':
+                        return df.loc[segments_to_examine,:]
+                    elif col == 'column':
+                        return df[segments_to_examine]
+                    else:
+                        return df.loc[df[col].isin(segments_to_examine),:]
+            elif isinstance(df,dict):
+                return {k:df[k] for k in segments_to_examine}
+                    
+        @staticmethod
+        def get_wm_parcellation(grouping:dict=None,
+                                df:[pd.DataFrame,list]=None,**kwargs)->dict:
+            """
+            Generate WM parcellation legends. May be used for visualisation.Brainmap
 
+            Parameters
+            ----------
+            grouping : {'segmented','hemisphere'}, optional
+                segmented - combine the same region - anterior and posterior
+                hemisphere - combine the same region - left and right. The default is None.
+            Returns
+            -------
+            label_dict : dict
+                Dictionary containing the regions name.
+
+            """
+            ###This bit is hardcoded
+            labels =  {
+                'wm_94': 'anterior limb of internal capsule left', 
+                'wm_95': 'anterior limb of internal capsule right', 
+                'wm_96': 'posterior limb of internal capsule left',
+                'wm_97': 'posterior limb of internal capsule right',
+                'wm_98': 'retrolenticular part of internal capsule left',
+                'wm_99': 'retrolenticular part of internal capsule right',
+                'wm_100': 'anterior corona radiata left',
+                'wm_101': 'anterior corona radiata right',
+                'wm_102': 'superior corona radiata left',
+                'wm_103': 'superior corona radiata right',
+                'wm_104': 'posterior corona radiata left',
+                'wm_105': 'posterior corona radiata right',
+                'wm_106': 'cingulum cingular part left',
+                'wm_107': 'cingulum cingular part right',
+                'wm_108': 'cingulum hipocampal part left',
+                'wm_109': 'cingulum hipocampal part right',
+                'wm_110': 'fornix left',
+                'wm_111': 'fornix right',
+                'wm_112': 'stria terminalis left',
+                'wm_113': 'stria terminalis right',
+                'wm_114': 'tapetum left',
+                'wm_115': 'tapetum right',
+                'wm_116': 'superior longitudinal fasciculus left',
+                'wm_117': 'superior longitudinal fasciculus right',
+                'wm_118': 'external capsule left',
+                'wm_119': 'external capsule right',
+                'wm_120': 'posterior thalamic radiation left',
+                'wm_121': 'posterior thalamic radiation right',
+                'wm_122': 'sagittal stratum left',
+                'wm_123': 'sagittal stratum right',
+                'wm_124': 'cerebral peduncle left',
+                'wm_125': 'cerebral peduncle right',
+                'wm_126': 'superior fronto occipital fasciculus left',
+                'wm_127': 'superior fronto occipital fasciculus right',
+                'wm_128': 'inferior fronto occipital fasciculus left',
+                'wm_129': 'inferior fronto occipital fasciculus right',
+                'wm_130': 'corticospinal tract left',
+                'wm_131': 'corticospinal tract right',
+                'wm_132': 'superior cerebellar peduncle left',
+                'wm_133': 'superior cerebellar peduncle right',
+                'wm_134': 'middle cerebellar peduncle left',
+                'wm_135': 'middle cerebellar peduncle right',
+                'wm_136': 'inferior cerebellar peduncle left',
+                'wm_137': 'inferior cerebellar peduncle right',
+                'wm_138': 'pontine crossing',
+                'wm_139': 'uncinate fasciculus left',
+                'wm_140': 'uncinate fasciculus right',
+                'wm_141': 'medial lemniscus left',
+                'wm_142': 'medial lemniscus right',
+                'wm_143': 'corpus callosum 1', #prefrontal part',
+                'wm_144': 'corpus callosum 2', # premotor/supplementary part',
+                'wm_145': 'corpus callosum 3', #motor part',
+                'wm_146': 'corpus callosum 4', #sensory part',
+                'wm_147': 'corpus callosum 5' #parietal/temporal/occipital part'
+            }
+             
+            label_dict = {k:{'name':v,'side':None,
+                             'segment':None,'structure':None,
+                             'abbr':None} for k,v in labels.items()}
+            # get basic structure of the dictionary, for each label
+            # you have 1) tissue 2) lobe 3) side
+            for side in ['left','right']:
+                side_key = Diffusion.WM_parcellation.get_segment(label_dict,side=[side]).keys()
+                for k in side_key:
+                    label_dict[k]['side'] = side
+
+            for k in label_dict:
+                if 'part' in label_dict[k]['name']:
+                    label_dict[k]['segment']=label_dict[k]['name'].split('part')[0].split(' ')[-2]
+                elif 'limb' in label_dict[k]['name']:
+                    label_dict[k]['segment']=label_dict[k]['name'].split('limb')[0].split(' ')[-2]
+                
+            for k in label_dict:
+                label_dict[k]['structure'] = label_dict[k]['name']
+                for n in label_dict[k]:
+                    if n == 'name' or n=='structure':
+                        continue
+                    try:
+                        label_dict[k]['structure'] = label_dict[k]['structure'].replace(label_dict[k][n],'')
+                    except TypeError:
+                        continue
+                label_dict[k]['structure'] = label_dict[k]['structure'].split(',')[0]
+                label_dict[k]['structure'] = label_dict[k]['structure'].replace('part','').replace('limb','').replace('of','').strip()
+            
+            # the abbr will be structure.segment.side
+            # if tissue:
+            for k in label_dict:
+                if len(label_dict[k]['structure'].split()) > 1:
+                    label_dict[k]['abbr'] = ''.join([x[0].upper() for x in label_dict[k]['structure'].split()])
+                else:
+                    label_dict[k]['abbr'] = label_dict[k]['structure'][0:4].upper()
+                for n in ['side','segment']:
+                        try:
+                            label_dict[k]['abbr'] = '.'.join([label_dict[k]['abbr'],label_dict[k][n]])
+                        except TypeError:
+                            continue
+
+            if isinstance(grouping,str):
+                grouping = [grouping]
+            if isinstance(grouping,(list,tuple)):
+                for k in label_dict:
+                    if label_dict[k]['abbr'] is not None:
+                        if 'segmented' in grouping and 'lobe' not in grouping:
+                            if label_dict[k]['segment'] is not None:
+                                label_dict[k]['abbr'] = label_dict[k]['abbr'].replace('.'+label_dict[k]['segment'],'')
+                        if 'hemisphere' in grouping:
+                            if label_dict[k]['side'] is not None:
+                                label_dict[k]['abbr'] = label_dict[k]['abbr'].replace('.'+label_dict[k]['side'],'')
+            if df is not None:
+                #if dataframe is passed, it will try to change the names of where the columns with wm parcellation are
+                if isinstance(df,pd.DataFrame):
+                    col = kwargs.get('col','index')
+                    if col == 'index' or col == 'columns':
+                        return df.rename({k:v['abbr'] for k,v in label_dict.items()},axis=col)
+                    else:
+                        df[col] = df[col].map({k:v['abbr'] for k,v in label_dict.items()})
+                        return df
+                elif isinstance(df,list):
+                    return [label_dict[k]['abbr'] for k in df]
+                else:
+                    raise TypeError('df must be dataframe or list of strings')
+            else:
+                return label_dict
+        
+        def group_wm_parcellation(df:pd.DataFrame,grouping:[list,tuple,str]=None,
+                                   operation:str='sum',drop_duplicates:bool=True):
+            """
+            Group Imperial Volume by summing them.
+            Use grouping scheme as defined in get_wm_parcellation()
+            
+            NOTE: even if the df doesn't contain the necessary regions
+            i.e., df was applied get_segments before grouped.
+            it will still work.
+            
+            Parameters
+            ----------
+            df : pd.DataFrame
+                The data Frame containing the Imperial volumes as columns.
+            grouping : {'segmented','hemisphere'}, optional
+                segmented - combine the same region - anterior and posterior
+                hemisphere - combine the same region - left and right. The default is None.
+            operation: str. {'sum','mean'}
+                how to group them. (mean can be used when generating positional info)
+            drop_duplicates: bool
+                Whether to drop the columns after grouping process.
+                by default, the first column in the group list is retained as the total
+                value of the rest of the values in the list and all values but the first one
+                is removed.
+                If False. All values in the grouped list will have the same values.
+                This is needed when plotting the Brain Map. Otherwise only the first value will show.
+            Returns
+            -------
+            new_df : pd.dataFrame
+                grouped DataFrame.
+
+            """
+            if not isinstance(df,pd.DataFrame):
+                raise TypeError('Needs pandas DataFrame')
+            new_df = df.copy()
+            grouped_volumes_dict = Diffusion.WM_parcellation.get_wm_parcellation(grouping)
+            grouped_volumes_dict = {k:v['abbr'] for k,v in grouped_volumes_dict.items() if k in new_df.columns}#{'wm_94:'IC.left.anterior'}
+            unique_grouped_volumes_dict = defaultdict(list)
+            for k,v in grouped_volumes_dict.items():
+                unique_grouped_volumes_dict[v].append(k)
+            for k,v in unique_grouped_volumes_dict.items():
+                if k is None:
+                    new_df = new_df.drop(columns = v)
+                else:
+                    if len(v) > 1:
+                        if operation == 'sum':
+                            new_df[v[0]] = df[v].sum(axis=1)
+                        elif operation == 'mean':
+                            new_df[v[0]] = df[v].mean(axis=1)
+                        if drop_duplicates:
+                            new_df = new_df.drop(columns=[i for i in df.columns if i in v[1:]])
+                        else:
+                            for col in v[1:]:
+                                if col in df.columns:
+                                    new_df[col] = new_df[v[0]]
+            return new_df
+    
 class Volumes:
     class Imperial:
-        #@staticmethod
-        # def group_Imperial_volumes(df:pd.DataFrame,
-        #                            grouping:str=None,
-        #                            operation:str = 'sum',
-        #                            remove_duplicated:bool=True,
-        #                            return_grouping_scheme:bool=False)->pd.DataFrame:
-        #     """
-        #     Grouping the volumes of the brain regions segmented by DrawEM (Imperial atlas).
-        #     Parameters
-        #     ----------
-        #     df : pd.DataFrame
-        #         This is the volumetric dataframe.
-        #     grouping: str {'segmented','gmwm2gether','all',None}
-        #         segmented: return grouped WM and grouped GM (e.g. anterior superior temporal gyrus WM right side is grouped with posterior STG WM right side)
-        #         gmwm2gether: return grouped WM and GM (e.g. anterior superior temporal right side WM + anterior STG right side GM)
-        #         all: return grouped segmented and gmwm2gether - first do 'segmented' then do 'gmwm2gether'.
-        #     operation : str, optional
-        #         {'sum','mean'}. The default is 'sum
-        #     remove_duplicated : bool, optional
-        #         Remove duplicated columns after groupings. The default is True. (useful when plotting)
-        #     return_grouping_scheme: bool, optional
-        #         Return the grouping scheme dictionary
-    
-        #     Returns
-        #     -------
-        #     new_df : pd.DataFrame
-        #         Grouped dataframe.
-    
-        #     """
-        #     new_df = df.copy()
-        #     if grouping is not None:
-        #         if grouping == 'segmented':
-        #             #Grey Matter
-        #             new_df = FeatureReduction.combine_columns_together(new_df,[['Imperial 5','Imperial 7'],['Imperial 6','Imperial 8'], #  Anterior Temporal Lobe    
-        #                                                                        ['Imperial 9','Imperial 25'],['Imperial 10','Imperial 24'],# Gyri parahippocampalis et ambines
-        #                                                                        ['Imperial 11','Imperial 31'],['Imperial 12','Imperial 30'],# STG
-        #                                                                        ['Imperial 13','Imperial 29'],['Imperial 14','Imperial 28'], # Medial and Inferior Temporal gyri
-        #                                                                        ['Imperial 15','Imperial 27'],['Imperial 16','Imperial 26'],# Lateral occipital gyrus
-        #                                                                        ['Imperial 33','Imperial 35'],['Imperial 32','Imperial 34']],# Cingulate gyrus
-        #                                                       operation=operation,
-        #                                                       remove_duplicated=remove_duplicated)
-                    
-        #             #White Matter
-        #             new_df = FeatureReduction.combine_columns_together(new_df,[['Imperial 57','Imperial 74'],['Imperial 58','Imperial 73'], # # STG
-        #                                                                        ['Imperial 51','Imperial 53'],['Imperial 52','Imperial 54'],# this is the Anterior Temporal Lob
-        #                                                                        ['Imperial 55','Imperial 68'],['Imperial 56','Imperial 67'],#Gyri parahippocampalis et ambines
-        #                                                                        ['Imperial 59','Imperial 72'],['Imperial 60','Imperial 71'], # Medial and Inferior Temporal gyri
-        #                                                                        ['Imperial 61','Imperial 70'],['Imperial 62','Imperial 69'],# Lateral occipital gyrus
-        #                                                                        ['Imperial 76','Imperial 78'],['Imperial 75','Imperial 77']],# Cingulate gyrus
-        #                                                       operation=operation,
-        #                                                       remove_duplicated=remove_duplicated)
-                    
-        #             #DeepGray Matter
-        #             new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 42','Imperial 86'],
-        #                                                                         ['Imperial 43', 'Imperial 87']],
-        #                                                                operation=operation,
-        #                                                                remove_duplicated = remove_duplicated)
-        #         elif grouping == 'gmwm2gether':
-        #             new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 5','Imperial 51'],['Imperial 6','Imperial 52'],['Imperial 7','Imperial 53'],['Imperial 8','Imperial 54'], #Anterior Temporal lobe
-        #                                                                         ['Imperial 9','Imperial 55'],['Imperial 10','Imperial 56'],['Imperial 25','Imperial 68'],['Imperial 24','Imperial 67'], # Gyri parahippocampalis et ambines
-        #                                                                         ['Imperial 11','Imperial 57'],['Imperial 12','Imperial 58'],['Imperial 31','Imperial 74'],['Imperial 30','Imperial 73'], # STG
-        #                                                                         ['Imperial 13','Imperial 59'],['Imperial 14','Imperial 60'],['Imperial 29','Imperial 72'],['Imperial 28','Imperial 71'], # Medial and ITG
-        #                                                                         ['Imperial 15','Imperial 61'],['Imperial 16','Imperial 62'],['Imperial 27','Imperial 70'],['Imperial 26','Imperial 69'], # Lateral Occipital Gyrus
-        #                                                                         ['Imperial 33','Imperial 76'],['Imperial 32','Imperial 75'],['Imperial 35','Imperial 78'],['Imperial 34','Imperial 77'],# Cingulate Gyrus
-        #                                                                         ['Imperial 21','Imperial 64'],['Imperial 20','Imperial 63'], # insula
-        #                                                                         ['Imperial 23','Imperial 66'],['Imperial 22','Imperial 65'], # occipital lobe
-        #                                                                         ['Imperial 37','Imperial 80'],['Imperial 36','Imperial 79'],# frontal lobe
-        #                                                                         ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81']],# parietal lobe
-        #                                                                operation=operation,
-        #                                                                remove_duplicated = remove_duplicated)
-
-        #         elif grouping == 'all':
-        #             new_df = FeatureReduction.combine_columns_together(new_df, [['Imperial 5','Imperial 51','Imperial 7','Imperial 53'],['Imperial 6','Imperial 52','Imperial 8','Imperial 54'], #Anterior Temporal lobe
-        #                                                                         ['Imperial 9','Imperial 55','Imperial 25','Imperial 68'],['Imperial 10','Imperial 56','Imperial 24','Imperial 67'], # Gyri parahippocampalis et ambines
-        #                                                                         ['Imperial 11','Imperial 57','Imperial 31','Imperial 74'],['Imperial 12','Imperial 58','Imperial 30','Imperial 73'], # STG
-        #                                                                         ['Imperial 13','Imperial 59','Imperial 29','Imperial 72'],['Imperial 14','Imperial 60','Imperial 28','Imperial 71'], # Medial and ITG
-        #                                                                         ['Imperial 15','Imperial 61','Imperial 27','Imperial 70'],['Imperial 16','Imperial 62','Imperial 26','Imperial 69'], # Lateral Occipital Gyrus
-        #                                                                         ['Imperial 33','Imperial 76','Imperial 35','Imperial 78'],['Imperial 32','Imperial 75','Imperial 34','Imperial 77'],# Cingulate Gyrus
-        #                                                                         ['Imperial 21','Imperial 64'],['Imperial 20','Imperial 63'], # insula
-        #                                                                         ['Imperial 23','Imperial 66'],['Imperial 22','Imperial 65'], # occipital lobe
-        #                                                                         ['Imperial 37','Imperial 80'],['Imperial 36','Imperial 79'],# frontal lobe
-        #                                                                         ['Imperial 39','Imperial 82'],['Imperial 38','Imperial 81'],# Parietal lobe
-        #                                                                         ['Imperial 42','Imperial 86'],['Imperial 43','Imperial 87']], # Thalamus
-        #                                                                         operation=operation,
-        #                                                                         remove_duplicated = remove_duplicated)
-        #     return new_df
         
         @staticmethod
         def get_segment(df:Union[pd.DataFrame,List,dict],col:str='column',**kwargs):
