@@ -78,73 +78,91 @@ run 'generating template FA map step 1' \
 run 'generating template FA map step 2' \
     TVtool -in IN:mean_final_high_res.nii.gz -fa -out OUT:mean_FA.nii.gz
 
-echo "calculating individual FA, AD, RD and TR"
-measures=( FA ) #AD RD or TR
-for measure in ${measures[@]}; do
-    mkdir -p ${measure}
+echo "calculating individual FA"
+
+measures=( AD TR RD )
+for measure in "${measures[@]}"; do
+mkdir -p $src/$output_folder/$tbss/$measure
     while read p; do
 	echo "====================="
 	echo "${p%_dti*}" 
 	echo "====================="
-	run "calculating ${measure}" \
-		TVtool -in IN:$p -${measure,,} -out OUT:$measure/${p%_dti*}_$measure.nii.gz
+	run "calculating ${measure} " \
+	    TVtool -in IN:$p -${measure,,} -out OUT:$src/$output_folder/$tbss/$measure/${p%_dti*}.nii.gz
     done < ${all_subjects_dti%.txt}_aff_diffeo.txt
 done
 echo ""
 echo ""
 echo ""
 echo "========================================="
-echo "           TBSS                          "
+echo "           TBSS-FA                       "
 echo "========================================="
 echo ""
 echo ""
 echo ""
-run 'generating FA skeleton from DTI template' \
-    tbss_skeleton -i IN:mean_FA.nii.gz -o OUT:mean_FA_skeleton.nii.gz
-
-
-for measure in ${measures[@]}; do
-    run "Combine each ${measure} map into a 4D volume" \
-	mrcat $(IN $measure/sub-*) OUT:$measure/all_${measure}.nii.gz
-    #NOTE: doing concat like this will sort the ids in the increasing order.
-    run "Generating mask for mean images " \
-	fslmaths IN:$measure/all_${measure}.nii.gz -max 0 -Tmin -bin OUT:$measure/mean_${measure}_mask.nii.gz -odt char
-done    
 
 cd $src/$output_folder/$tbss
-mkdir -p $stats_folder/
-
-
-cp -u $src/$output_folder/$tbss/$DTI_TK_processed/mean_FA_skeleton.nii.gz $src/$output_folder/$tbss/$stats_folder/
+mkdir -p $stats_folder
 
 cp -u $src/$output_folder/$tbss/$DTI_TK_processed/mean_FA.nii.gz $src/$output_folder/$tbss/$stats_folder/
 
-cp -u $src/$output_folder/$tbss/$DTI_TK_processed/FA/all_FA.nii.gz $src/$output_folder/$tbss/$stats_folder/
+run 'generating FA skeleton from DTI template' \
+    tbss_skeleton -i IN:$stats_folder/mean_FA.nii.gz -o OUT:$stats_folder/mean_FA_skeleton.nii.gz
 
-cp -u $src/$output_folder/$tbss/$DTI_TK_processed/FA/mean_FA_mask.nii.gz $src/$output_folder/$tbss/$stats_folder/
-
+run "Combine each FA map into a 4D volume" \
+    mrcat $(IN FA/sub-*) OUT:$stats_folder/all_FA.nii.gz
+#NOTE: doing concat like this will sort the ids in the increasing order.
+run "Generating mask for mean images " \
+    fslmaths IN:$stats_folder/all_FA.nii.gz -max 0 -Tmin -bin OUT:$stats_folder/mean_FA_mask.nii.gz -odt char
 
 if [ ! -f $stats_folder/mean_FA_skeleton_mask.nii.gz ]; then
     tbss_4_prestats 0.1
 fi
 
 
+echo ""
+echo ""
+echo ""
+echo "========================================="
+echo "           TBSS-non-FA                   "
+echo "========================================="
+echo ""
+echo ""
+echo ""
 
+cd $src/$output_folder/$tbss/
 
+measures=( AD TR RD MD )
+for measure in "${measures[@]}";do
+if [ $measure == "MD" ]; then
+    run 'generating all MD' \
+	fslmaths IN:$stats_folder/all_TR.nii.gz -div 3 OUT:$stats_folder/all_MD.nii.gz
+else
+run "Combine each $measure into a 4D volume" \
+	mrcat $(IN $measure/sub-*) OUT:$stats_folder/all_$measure.nii.gz
+fi
+run "Generating $measure skeleton "\
+	tbss_skeleton -i IN:$stats_folder/mean_FA.nii.gz -p 0.15 IN:$stats_folder/mean_FA_skeleton_mask_dst.nii.gz ~/fsl/data/standard/LowerCingulum_1mm IN:$stats_folder/all_$measure.nii.gz OUT:$stats_folder/all_${measure}_skeletonised.nii.gz
 
+done
 
-#for measure in ${measures[@]}; do
-#    mkdir -p $tbss/$measure
-#    for ID in ${ID_list[@]}; do
-#	id_ses=$(echo $ID | sed 's/\//_/')
-#        run 'converting to fsl nii.gz' \
-#		mrconvert IN:$ID/dt_$measure.mif OUT:$tbss/$measure/${id_ses}_${measure}.nii.gz
-#    done
-#done
-#
-#cd $tbss/fa
-#mrconvert $src/$output_folder/$warped_wm_fod_average warped_wm_fod_average.nii.gz
-#tbss_1_preproc *.nii.gz
+# generate design matrices
 
-#tbss_2_reg -t warped_wm_fod_average.nii.gz
-#tbss_3_postreg -S
+run 'getting contrast and design matrices' \
+  python $src/generate_ID_list.py matrix \
+  --file IN:$src/$subjects_list --sep , \
+  --categorical 1 \
+  --catnames sex \
+  --continuous 2 3 6 7 8 9 \
+  --contnames PMA GA PRSPCA AncPC1 AncPC2 AncPC3 \
+  --contrast PRSPCA \
+  --no-standardize \
+  --no-intercept \
+  --sort_id \
+  --generate_vest \
+  --out_ID OUT:$stats_folder/$id_file \
+  --out_design OUT:$stats_folder/$design_matrix \
+  --out_contrast OUT:$stats_folder/$contrast_matrix
+
+#randomise -i all_FA -o ICV_test -d designmatrix.txt -t contrast_matrix -m mean_FA_skeleton_mask -n 1000 -n 10000 --T2 -D
+

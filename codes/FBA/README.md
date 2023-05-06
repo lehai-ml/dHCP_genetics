@@ -24,7 +24,7 @@ This folder contains several scripts and folders, they are summarised as follows
 |File| Description|
 |----|------------|
 |```perform_tbss.sh``` | Use to perform TBSS in babies. Uses DTI-TK and FSL |
-|```calculate_dti.sh```|Calculate tensor metrics using MRtrix3|
+|```perform_vba.sh```|Perform voxel-wise measure on WM mask|
 
 See [DTI-TK preprocessing and registration tutorial](https://dti-tk.sourceforge.net/pmwiki/pmwiki.php?n=Documentation.HomePage)
 See [FSL TBSS User Guide](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/TBSS/UserGuide)
@@ -56,6 +56,10 @@ The main folders are ordered as follows (example only, there are many other fold
 
 ```
 process.sh <-execute .sh here
+subjects_list/
+|    subject_list.txt - in csv format, where the first column is the ID
+scripts/
+|    all the supporting scripts described above
 output/
 |____5TT/
 |____all_subj_{fc,fdc,fd,log_fc}/
@@ -86,8 +90,19 @@ output/
 |    |    |     dti_FA.nii.gz <- DTI calculated by FSL
 |____|____DTI_TK_processed/
 |    |    |     *{aff,diffeo}.nii.gz <- registration by DTI-TK
-|____|____stats/ 
+|    |____FA
+|    |    |    sub-CC*.nii.gz <-calculated by DTI-TK
+|    |____AD/RD/MD/FD
+|    |____stats/
+|    |    |    all_{FA,AD,MD,etc}.nii.gz
+|    |    |    all_FA_skeletonised.nii.gz
+|    |    |    mean_FA_mask.nii.gz
+|    |    |    mean_FA.nii.gz
+|    |    |    mean_FA_skeleton.nii.gz
+|    |    |    mean_FA_skeleton_mask.nii.gz
+|    |    |    mean_FA_skeleton_mask_dst.nii.gz
 |    |    |    *_tfce_corrp_tstat1.nii.gz <-result of TBSS
+
 |____glass_brain/
 ```
 

@@ -19,7 +19,7 @@ ld_files=$src/$genetic_data/ld_files/PRSICE_check_file #set of files containing 
 #covariate=covariate_EUR.txt
 lower=1e-8
 upper=1
-number=100
+number=1000
 PRS_threshold=$(python generate_thresholds_intervals.py \
 	--lower $lower --upper $upper --log --number $number --precision 1)
 #Rscript ./$PRSice_script\
@@ -43,6 +43,8 @@ PRS_threshold=$(python generate_thresholds_intervals.py \
 #	--ld $ld_files\
 ##	--msigdb $msigdb\
 
+#PRS_threshold=$(cat asd_all_thresholds.txt)
+
 Rscript ./$PRSice_script\
 	--prsice ./$PRSice_bin \
 	--dir . \
@@ -59,7 +61,8 @@ Rscript ./$PRSice_script\
 	--stat OR\
 	--ld $ld_files\
 	--target $target_files \
-	--out $src/$output_folder/asd/ASD \
+	--out $src/$output_folder/asd/ASD_1000p \
 	--no-regress \
-	--extract $src/$output_folder/asd/ASD.valid
+	--print-snp \
+	--extract $src/$output_folder/asd/ASD_1000p.valid
 

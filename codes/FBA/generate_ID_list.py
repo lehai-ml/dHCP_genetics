@@ -45,15 +45,16 @@ def main():
     id_matrix.add_argument('--continuous',help='denote columns containing continuous variables',nargs='+',type=int)
     id_matrix.add_argument('--standardize', help='standardize the continuous variables',action='store_true')
     id_matrix.add_argument('--no-standardize',dest='standardize',action='store_false')
+    id_matrix.add_argument('--intercept',help='add columns of intercepts',action='store_true')
+    id_matrix.add_argument('--no-intercept',dest='intercept',action='store_false')
     id_matrix.add_argument('--contrast',help='define the column to contrast',nargs='+')
     id_matrix.add_argument('--neg', help='whether to perform opposite hypothesis', action='store_true')
     id_matrix.add_argument('--catnames',help='assign column names to categorical variable',nargs='+',type=str)
     id_matrix.add_argument('--contnames',help='assign column names to continuous variables',nargs='+',type=str)
     id_matrix.add_argument('--id_prefix',help='assign prefix to the IDs in the ID file',type=str)
     id_matrix.add_argument('--id_suffix',help='assign suffix to the IDs in the ID file',type=str)
+    id_matrix.add_argument('--generate_vest',help='Vest file is needed for randomise', action='store_true')
     id_matrix.add_argument('--sort_id',help='sort the ids alphabeto-numerically',action='store_true')
-    id_matrix.add_argument('--intercept',help='add columns of intercepts',action='store_true')
-    id_matrix.add_argument('--no-intercept',dest='intercept',action='store_false')
     id_matrix.add_argument('--out_ID',help='output for ID file')
     id_matrix.add_argument('--out_design',help='output for design matrix')
     id_matrix.add_argument('--out_contrast',help='output for contrast matrix')
@@ -313,7 +314,7 @@ class Generateids:
                                    categoricalVariable:List[int]=None,
                                    continuousVariable:List[int]=None,
                                    standardize:bool=True,
-                                   intercept=True,
+                                   intercept:bool=True,
                                    contrast:int=None,
                                    f_stats:bool=False,
                                    categorical_Names:List[str]=None,
@@ -322,6 +323,7 @@ class Generateids:
                                    id_prefix:str=None,
                                    id_suffix:str=None,
                                    sort_id:bool=False,
+                                   generate_vest:bool=False,
                                    ID_file:str=None,
                                    contrast_file:str=None,
                                    design_file:str=None,
@@ -424,7 +426,13 @@ class Generateids:
             design_pd = design_pd.astype('str')
             design_matrix = [' '.join(design_pd.iloc[row,:].tolist()) for row in range(len(design_pd))]
             with open(design_file,'w') as f:
-                f.writelines(['#']+[str(i)+' ' for i in design_pd.columns])
+                if generate_vest:
+                    f.writelines(f'/NumWaves {len(independentVariable)}\n')
+                    f.writelines(f'/NumPoints {len(design_pd)}\n')
+                    f.writelines('\n')
+                    f.writelines('/Matrix')
+                else:
+                    f.writelines(['#']+[str(i)+' ' for i in design_pd.columns])
                 f.writelines('\n')
                 for line in design_matrix:
                     f.writelines(line)
@@ -453,23 +461,18 @@ class Generateids:
                     else:
                         contrast_matrix_temp[contrast_id[0]] = 1
                     contrast_matrix.append(contrast_matrix_temp)
-            
+
         if isinstance(contrast_file,str):
             with open(contrast_file,'w') as f:
+                if generate_vest:
+                    f.writelines(f'/NumWaves {len(independentVariable)}\n')
+                    f.writelines(f'/NumContrasts {len(contrast_matrix)}\n')
+                    f.writelines('\n')
+                    f.writelines('/Matrix')
+                    f.writelines('\n')
                 for hypothesis in contrast_matrix:
                     f.writelines(' '.join([str(i) for i in hypothesis]))
                     f.writelines('\n')
-    
-        if isinstance(design_file,str):
-            design_pd = design_pd.astype('str')
-            design_matrix = [' '.join(design_pd.iloc[row,:].tolist()) for row in range(len(design_pd))]
-            with open(design_file,'w') as f:
-                f.writelines(['#']+[str(i)+' ' for i in design_pd.columns])
-                f.writelines('\n')
-                for line in design_matrix:
-                    f.writelines(line)
-                    f.writelines('\n')
-
 
 
 if __name__ == '__main__':
@@ -524,6 +527,7 @@ if __name__ == '__main__':
                                                id_suffix=args.id_suffix,
                                                sort_id=args.sort_id,
                                                ID_file=args.out_ID,
+                                               generate_vest=args.generate_vest,
                                                contrast_file=args.out_contrast,
                                                design_file=args.out_design)
     
