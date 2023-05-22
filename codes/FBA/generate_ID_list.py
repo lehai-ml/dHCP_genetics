@@ -56,8 +56,7 @@ def main():
     id_matrix.add_argument('--generate_vest',help='Vest file is needed for randomise', action='store_true')
     id_matrix.add_argument('--sort_id',help='sort the ids alphabeto-numerically',action='store_true')
     id_matrix.add_argument('--out_ID',help='output for ID file')
-    id_matrix.add_argument('--out_design',help='output for design matrix')
-    id_matrix.add_argument('--out_contrast',help='output for contrast matrix')
+    id_matrix.add_argument('--test',help='whether to just print to the terminal',action='store_true')
 
     args=parser.parse_args()
 
@@ -113,9 +112,9 @@ class Generateids:
         """
         if isinstance(filename,str):
             if delim_whitespace:
-                file = pd.read_csv(filename,header=header,delim_whitespace=True)
+                file = pd.read_csv(filename,header=header,comment='#',delim_whitespace=True)
             elif isinstance(sep,str):
-                file = pd.read_csv(filename,header=header,sep=sep)
+                file = pd.read_csv(filename,header=header,comment='#',sep=sep)
             ID_pd=pd.DataFrame()
             
             if isinstance(idcolumns,list):
@@ -269,9 +268,9 @@ class Generateids:
         """
         if isinstance(filename,str):
             if delim_whitespace:
-                file = pd.read_csv(filename,header=header,delim_whitespace=True)
+                file = pd.read_csv(filename,header=header,comment='#',delim_whitespace=True)
             elif isinstance(sep,str):
-                file = pd.read_csv(filename,header=header,sep=sep)
+                file = pd.read_csv(filename,header=header,comment='#',sep=sep)
         updated_ID_pd = file.copy()
 
         if isinstance(criteria,list):
@@ -325,9 +324,8 @@ class Generateids:
                                    sort_id:bool=False,
                                    generate_vest:bool=False,
                                    ID_file:str=None,
-                                   contrast_file:str=None,
-                                   design_file:str=None,
-                                   f_file:str=None,):
+                                   f_file:str=None,
+                                   test:bool=False):
         """
         Parameters
         ----------
@@ -367,18 +365,22 @@ class Generateids:
         """
         if isinstance(filename,str):
             if delim_whitespace:
-                ID_pd = pd.read_csv(filename,header=header,delim_whitespace=True)
+                ID_pd = pd.read_csv(filename,header=header,comment='#',delim_whitespace=True)
             elif isinstance(sep,str):
-                ID_pd = pd.read_csv(filename,header=header,sep=sep)
+                ID_pd = pd.read_csv(filename,header=header,comment='#',sep=sep)
         if id_prefix is None:
             id_prefix=''
         if id_suffix is None:
             id_suffix=''
         if sort_id:
-            ID_pd=ID_pd.sort_values(ID_pd.columns[0])
+            ID_pd=ID_pd.sort_values(ID_pd.columns[0]).reset_index(drop=True)
         name_file = ID_pd.iloc[:,0].apply(lambda x:id_prefix+x.replace('/','_')+id_suffix+'.mif')
         ID_list = name_file.tolist()
         if isinstance(ID_file,str):
+            if '/' in ID_file:
+                prefix='/'.join(ID_file.split('/')[0:-1]) + '/'
+            else:
+                prefix=[]
             with open(ID_file,'w') as f:
                 for i in ID_list:
                     f.writelines(i)
@@ -417,63 +419,63 @@ class Generateids:
             continuous_pd = pd.DataFrame()
         
         if intercept:
-            design_pd['intercept'] = [1 for i in range(len(ID_pd))]
+            design_pd['intercept'] = 1
         design_pd = pd.concat([design_pd,category_pd,continuous_pd],axis=1)
         independentVariable=['intercept'] + categoricalVariable+continuousVariable if intercept else categoricalVariable + continuousVariable
         independentVariable_names = design_pd.columns.tolist()
-        
-        if isinstance(design_file,str):
-            design_pd = design_pd.astype('str')
-            design_matrix = [' '.join(design_pd.iloc[row,:].tolist()) for row in range(len(design_pd))]
-            with open(design_file,'w') as f:
-                if generate_vest:
-                    f.writelines(f'/NumWaves {len(independentVariable)}\n')
-                    f.writelines(f'/NumPoints {len(design_pd)}\n')
-                    f.writelines('\n')
-                    f.writelines('/Matrix')
+        # these two variables can have different length, if there are more than 1 group in the categorical data
+        if not isinstance(contrast,list):
+            raise TypeError('Contrast is empty')
+        for hypothesis in contrast:
+            contrast_to_not_consider = [i for i in contrast if i != hypothesis]
+            if isinstance(ID_file,str) or test:
+                temp_design_pd = design_pd.drop(columns=[i for n in contrast_to_not_consider 
+                                                        for i in independentVariable_names
+                                                        if n in i]).astype('str')
+                design_matrix = [' '.join(temp_design_pd.iloc[row,:].tolist()) for row in range(len(design_pd))]
+                if not test:
+                    with open(prefix+hypothesis.replace('.','_')+'_design.txt','w') as f:
+                        if generate_vest:
+                            f.writelines(f'/NumWaves {len(independentVariable)-len(contrast)+1}\n')
+                            f.writelines(f'/NumPoints {len(temp_design_pd)}\n')
+                            f.writelines('\n')
+                            f.writelines('/Matrix')
+                        else:
+                            f.writelines(['#']+[str(i)+' ' for i in temp_design_pd.columns])
+                        f.writelines('\n')
+                        for line in design_matrix:
+                            f.writelines(line)
+                            f.writelines('\n')
                 else:
-                    f.writelines(['#']+[str(i)+' ' for i in design_pd.columns])
-                f.writelines('\n')
-                for line in design_matrix:
-                    f.writelines(line)
-                    f.writelines('\n')
-
-        contrast_matrix = []
-        if isinstance(contrast,list):
-            if (all(items.isdigit() for items in contrast)):
-                contrast = [int(i) for i in contrast] #defining contrast as list of intergers
-                for hypothesis in contrast:
-                    contrast_matrix_temp = [0 for i in range(len(independentVariable))]
-                    contrast_id = [idx for idx,i in enumerate(independentVariable) if i == hypothesis]
-                    contrast_matrix_temp[contrast_id[0]] = 1
-                    contrast_matrix.append(contrast_matrix_temp)
-            else:
-                for hypothesis in contrast:
-                    contrast_matrix_temp = [0 for i in range(len(independentVariable_names))]
-                    contrast_id = [idx for idx,i in enumerate(independentVariable_names) if i == hypothesis]
-                    if len(contrast_id) == 0: # if nothing is in it
-                        #this happens if it is categorical var
-                        contrast_id = [idx for idx,i in enumerate(independentVariable_names) if hypothesis in i]
-                    if len(contrast_id) > 1:
-                        raise ValueError('the term of interest is repeating more than once')
+                    print(temp_design_pd.head(2))
+                        
+                contrast_matrix_temp = [0 for i in range(len(temp_design_pd.columns))]
+                contrast_id = [idx for idx,i in enumerate(temp_design_pd.columns.tolist()) if i == hypothesis]
+                if len(contrast_id) == 0: # if nothing is in it
+                    #this happens if it is categorical var
+                    contrast_id = [idx for idx,i in enumerate(temp_design_pd.columns.tolist()) if hypothesis in i]
+                if len(contrast_id) > 1:
+                    raise ValueError('the term of interest is repeating more than once')
+                try:
                     if negative: # test opposite hypothesis
                         contrast_matrix_temp[contrast_id[0]] = -1
                     else:
                         contrast_matrix_temp[contrast_id[0]] = 1
-                    contrast_matrix.append(contrast_matrix_temp)
-
-        if isinstance(contrast_file,str):
-            with open(contrast_file,'w') as f:
-                if generate_vest:
-                    f.writelines(f'/NumWaves {len(independentVariable)}\n')
-                    f.writelines(f'/NumContrasts {len(contrast_matrix)}\n')
-                    f.writelines('\n')
-                    f.writelines('/Matrix')
-                    f.writelines('\n')
-                for hypothesis in contrast_matrix:
-                    f.writelines(' '.join([str(i) for i in hypothesis]))
-                    f.writelines('\n')
-
+                except IndexError:
+                    raise IndexError("Check again that maybe one of the contrast name is a substring of another contrast name or the contnames do not match contrast name")    
+                if not test:
+                    with open(prefix+hypothesis.replace('.','_')+'_contrast.txt','w') as f:
+                        if generate_vest:
+                            f.writelines(f'/NumWaves {len(independentVariable)}\n')
+                            f.writelines(f'/NumContrasts {len(contrast_matrix)}\n')
+                            f.writelines('\n')
+                            f.writelines('/Matrix')
+                            f.writelines('\n')
+                        f.writelines(' '.join([str(i) for i in contrast_matrix_temp]))
+                        f.writelines('\n')
+                else:
+                    print(hypothesis.replace('.','_'))
+                    print(contrast_matrix_temp)
 
 if __name__ == '__main__':
     args = main()
@@ -522,13 +524,12 @@ if __name__ == '__main__':
                                                contrast=args.contrast,
                                                categorical_Names=args.catnames,
                                                continuous_Names=args.contnames,
+                                               test=args.test,
                                                negative=args.neg,
                                                id_prefix=args.id_prefix,
                                                id_suffix=args.id_suffix,
                                                sort_id=args.sort_id,
                                                ID_file=args.out_ID,
-                                               generate_vest=args.generate_vest,
-                                               contrast_file=args.out_contrast,
-                                               design_file=args.out_design)
+                                               generate_vest=args.generate_vest)
     
 
