@@ -10,6 +10,7 @@ function calculate_volumes() {
 	output_ID_list=()
 	while read subj; do
 		if [ "x$subj" == "x" ]; then continue; fi
+		if [[ "$subj" =~ ^[[:space:]]*# ]]; then continue; fi
 		IFS=',' read -ra subj <<< $subj
 		ID_list+=(${subj[0]})
 	done < $subject_list
@@ -22,7 +23,6 @@ function calculate_volumes() {
 		done < $output_file
 	fi
 	for ID in ${ID_list[@]}; do
-	(
 		if [[ " ${output_ID_list[*]} " == *" $ID "* ]]; then
 		       continue
 		fi
@@ -36,8 +36,7 @@ function calculate_volumes() {
 		echo $ID ${volumes[@]} >> $output_file
 		rm $segm_file
 
-	) || continue
 done
 }
 
-run "calculate tract volume" calculate_volumes IN:$subjects_list OUT:$output_folder/$aba/$tract_volumes 
+calculate_volumes $subjects_list $output_folder/$aba/$tract_volumes 

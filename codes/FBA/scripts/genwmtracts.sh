@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #This file is used to generate custom tracts.
-
+mkdir -p $src/$output_folder/$output_tractography/$fba_output
 mkdir -p $src/$output_folder/$output_tractography/$individual_tracts
 cd $src/$output_folder/$output_tractography/$individual_tracts
 
@@ -13,6 +13,12 @@ run 'regriding KANA mask' \
 
 run 'Generating Interhemispheric exclusion regions'\
 	mrconvert IN:$src/$output_folder/$warped_mask_average OUT:$interhemispheric_exclude --coord 0 37
+
+run 'registering common average wm_fod to WM FOD parcellation space' \
+	mrregister IN:$src/$output_folder/$warped_wm_fod_average IN:$common_wm_fod_40weeks_by_Alena -mask1 IN:$src/$output_folder/$warped_mask_average -nl_warp OUT:$src/$output_folder/$output_5TT/$native2wm_parc_warp OUT:$src/$output_folder/$output_5TT/$wm_parc2native_warp
+
+run 'transforming wm parcellation to average space' \
+	mrtransform IN:$wm_parcellation_by_Alena -warp IN:$src/$output_folder/$output_5TT/$wm_parc2native_warp -interp nearest OUT:$src/$output_folder/$output_5TT/$wm_parcellation_warped_wm_fod
 
 #run 'Generating forceps minor' \
 #    generate_wm_tract IN:$src/$wm_tracts CC \
@@ -40,14 +46,67 @@ run 'Generating Interhemispheric exclusion regions'\
 #    -cutoff 0.08 \
 #    -out OUT:$fma/$fma.tck
 
-run 'Generating CC' \
-    generate_wm_tract IN:$src/$wm_tracts CC \
-    -tckdo tckedit \
-    -tckfile $src/$output_folder/$output_tractography/$reduced_tracts \
+#run 'Generating right posterior limb internal capsule' \
+#    generate_wm_tract IN:$src/$wm_tracts PLIC_R \
+#    -tckdo tckgen \
+#    -exclude IN:$interhemispheric_exclude \
+#    -ROI IN:$src/$output_folder/$output_5TT/$wm_parcellation_warped_wm_fod \
+#    -fod IN:$src/$output_folder/$warped_wm_fod_average \
+#    -act IN:$src/$output_folder/$output_5TT/$image_5TT \
+#    -mask IN:$src/$output_folder/$warped_mask_average \
+#    -seed_image IN:$src/$output_folder/$output_5TT/thalamus_R_mask.mif \
+#    -select 0 \
+#    -seeds 50000000 \
+#    -angle 20 \
+#    -cutoff 0.2 \
+#    -maxlength 50 \
+#    -out OUT:$plic_R/$plic_R.tck \
+#    -seed_unidirectional
+#
+#run 'Generating right posterior limb internal capsule' \
+#    generate_wm_tract IN:$src/$wm_tracts PLIC_L \
+#    -tckdo tckgen \
+#    -exclude IN:$interhemispheric_exclude \
+#    -ROI IN:$src/$output_folder/$output_5TT/$wm_parcellation_warped_wm_fod \
+#    -fod IN:$src/$output_folder/$warped_wm_fod_average \
+#    -act IN:$src/$output_folder/$output_5TT/$image_5TT \
+#    -mask IN:$src/$output_folder/$warped_mask_average \
+#    -seed_image IN:$src/$output_folder/$output_5TT/thalamus_L_mask.mif \
+#    -select 0 \
+#    -seeds 50000000 \
+#    -angle 20 \
+#    -cutoff 0.2 \
+#    -maxlength 50 \
+#    -out OUT:$plic_L/$plic_L.tck \
+#    -seed_unidirectional
+
+run 'Generating corticospinal tract L' \
+    generate_wm_tract IN:$src/$wm_tracts CST_L \
+    -tckdo tckgen \
+    -exclude IN:$interhemispheric_exclude \
+    -ROI IN:$src/$output_folder/$output_5TT/$wm_parcellation_warped_wm_fod \
+    -fod IN:$src/$output_folder/$warped_wm_fod_average \
     -act IN:$src/$output_folder/$output_5TT/$image_5TT \
     -mask IN:$src/$output_folder/$warped_mask_average \
-    -maxlength 10 \
-    -out OUT:$cc/$cc.tck
+    -seed_image IN:$src/$output_folder/$output_5TT/scr_L_mask.mif \
+    -select 0 \
+    -seeds 100000 \
+    -angle 20 \
+    -cutoff 0.2 \
+    -maxlength 50 \
+    -out OUT:$plic_L/$cst_L.tck \
+    -seed_unidirectional
+
+
+
+#run 'Generating CC' \
+#    generate_wm_tract IN:$src/$wm_tracts CC \
+#    -tckdo tckedit \
+#    -tckfile $src/$output_folder/$output_tractography/$reduced_tracts \
+#    -act IN:$src/$output_folder/$output_5TT/$image_5TT \
+#    -mask IN:$src/$output_folder/$warped_mask_average \
+#    -maxlength 10 \
+#    -out OUT:$cc/$cc.tck
 #run 'Generating Cingulum Dorsal Right tract' \
 #    generate_wm_tract IN:$src/$wm_tracts CING_D_R \
 #    -tckdo tckedit \
@@ -69,3 +128,8 @@ run 'Generating CC' \
 #	OUT:$src/$output_folder/$output_tractography/$sift_tracts
 #
 
+ 
+#for tract in ${tract_to_examine[@]};do
+#update_folder_if_needed run "'generating fixel-fixel connectivity'" \
+#  fixelconnectivity IN:$src/$output_folder/$fixel_mask IN:$tract/$tract.tck OUT:$src/$output_folder/$output_tractography/$fba_output/${tract}_${ffixel_matrix}
+#done

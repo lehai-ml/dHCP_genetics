@@ -304,6 +304,10 @@ function generate_wm_tract {
 		additional_tck_args+=" -select ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-include" ]]; then
 		additional_tck_args+=" -include ${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-include_ordered" ]]; then
+		additional_tck_args+=" -include_ordered ${cmd[(($i+1))]}"
+	    elif [[ ${cmd[$i]} == "-seed_unidirectional" ]]; then
+		additional_tck_args+=" -seed_unidirectional ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-exclude" ]]; then
 		additional_tck_args+=" -exclude ${cmd[(($i+1))]}"
 	    elif [[ ${cmd[$i]} == "-seeds" ]]; then
@@ -352,7 +356,7 @@ function generate_wm_tract {
 	    to_eval+=" $track"
 	fi
 	for n in "${!include[@]}";do
-	    if [[ ${include[$n]} == "-include:" ]] || [[ ${include[$n]} == "-exclude:" ]] ; then
+	    if [[ ${include[$n]} == "-include:" ]] || [[ ${include[$n]} == "-include_ordered:" ]] || [[ ${include[$n]} == "-exclude:" ]] ; then
 	        to_do=${include[$n]%:}
 	        to_include=${include[(($n+1))]}
 	        if [[ $to_include == *"+"* ]] || [ "$to_include" -eq "$to_include" ] ; then

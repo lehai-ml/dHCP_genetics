@@ -55,3 +55,6 @@ codes/DrawEMVol/output/all_Jacobians.nii.gz
 codes/DrawEMVol/output/
 codes/DrawEMVol/week40_T2w.nii.gz
 *.pdf
+codes/FBA/output_ASD
+codes/FBA/Jacobians_in_extdhcp40wks
+codes/DrawEMVol/dafnis

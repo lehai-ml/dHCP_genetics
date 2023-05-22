@@ -153,9 +153,9 @@ run 'getting contrast and design matrices' \
   --file IN:$src/$subjects_list --sep , \
   --categorical 1 \
   --catnames sex \
-  --continuous 2 3 6 7 8 9 \
-  --contnames PMA GA PRSPCA AncPC1 AncPC2 AncPC3 \
-  --contrast PRSPCA \
+  --continuous 2 3 5 6 7 8 \
+  --contnames GA PMA ASD_PRS_Pt_001 AncPC1 AncPC2 AncPC3 \
+  --contrast ASD_PRS_Pt_001 \
   --no-standardize \
   --no-intercept \
   --sort_id \
@@ -164,5 +164,5 @@ run 'getting contrast and design matrices' \
   --out_design OUT:$stats_folder/$design_matrix \
   --out_contrast OUT:$stats_folder/$contrast_matrix
 
-#randomise -i all_FA -o ICV_test -d designmatrix.txt -t contrast_matrix -m mean_FA_skeleton_mask -n 1000 -n 10000 --T2 -D
+randomise -i all_FA -o ASD_PRS_Pt_001 -d designmatrix.txt -t contrast_matrix -m mean_FA_skeleton_mask -n 1000 --T2 -D
 
