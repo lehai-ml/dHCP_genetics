@@ -33,28 +33,31 @@ done
 
 cd $src/$output_folder/$jacobians_clusterstat
 
+pt=( ASD_imputed_Pt_1em8 ASD_imputed_Pt_1em6 ASD_imputed_Pt_1em5 ASD_imputed_Pt_00001 ASD_imputed_Pt_0001 ASD_imputed_Pt_001 ASD_imputed_Pt_005 ASD_imputed_01 ASD_imputed_Pt_05 ASD_imputed_Pt_all ASD_imputed_PC1 ASD_imputed_CS )
+id_file=id_file_imputed.txt
+
 run 'getting contrast and design matrices' \
   python $src/generate_ID_list.py matrix \
   --file IN:$src/$subjects_list --sep , \
   --categorical 1 \
   --catnames sex \
+  --intercept \
   --standardize \
-  --continuous 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 \
-  --contnames GA PMA TBV ASD_PRS_Pt_1em08 ASD_PRS_Pt_1em06 ASD_PRS_Pt_1em5 ASD_PRS_Pt_00001 ASD_PRS_Pt_0001 ASD_PRS_Pt_001 ASD_PRS_Pt_005 ASD_PRS_Pt_01 ASD_PRS_Pt_05 ASD_PRS_Pt_all ASD_PRS_PC1 AncPC1 AncPC2 AncPC3 \
-  --contrast ASD_PRS_Pt_1em08 ASD_PRS_Pt_1em06 ASD_PRS_Pt_1em5 ASD_PRS_Pt_00001 ASD_PRS_Pt_0001 ASD_PRS_Pt_001 ASD_PRS_Pt_005 ASD_PRS_Pt_01 ASD_PRS_Pt_05 ASD_PRS_Pt_all ASD_PRS_PC1 \
-  --sort_id \
+  --continuous 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 \
+  --contnames GA PMA TBV ${pt[@]} AncPC1 AncPC2 AncPC3 \
+  --contrast ${pt[@]} \
   --id_suffix "_"${regrided_log_jacobians_in_warped_wm_mask_template%".mif"} \
-  --out_ID OUT:$id_file \
+  --out_ID OUT:$id_file
 
-#pt=( ASD_PRS_Pt_1em08 ASD_PRS_Pt_1em06 ASD_PRS_Pt_1em5 ASD_PRS_Pt_00001 ASD_PRS_Pt_0001 ASD_PRS_Pt_001 ASD_PRS_Pt_005 ASD_PRS_Pt_01 ASD_PRS_Pt_05 ASD_PRS_Pt_all ASD_PRS_PC1 )
-pt=( ASD_PRS_Pt_001 )
+
+#pt=( ASD_PRS_Pt_001 )
 for pt in ${pt[@]}; do
     echo "###########################"
     echo "doing ${pt}"
     echo "###########################"
-    if [ ! -d "$pt" ]; then
-	mkdir -p $pt
-        mrclusterstats $id_file $pt"_design.txt" $pt"_contrast.txt" $src/$output_folder/$output_5TT/wm_mask_regridded_to_average.mif $pt/stat
+    if [ ! -d "whole_brain/$pt" ]; then
+	mkdir -p whole_brain/$pt
+        mrclusterstats $id_file $pt"_design.txt" $pt"_contrast.txt" $src/$output_folder/$warped_mask_average whole_brain/$pt/stat
     fi
 done
 

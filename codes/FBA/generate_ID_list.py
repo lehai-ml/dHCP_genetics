@@ -48,7 +48,8 @@ def main():
     id_matrix.add_argument('--intercept',help='add columns of intercepts',action='store_true')
     id_matrix.add_argument('--no-intercept',dest='intercept',action='store_false')
     id_matrix.add_argument('--contrast',help='define the column to contrast',nargs='+')
-    id_matrix.add_argument('--neg', help='whether to perform opposite hypothesis', action='store_true')
+    id_matrix.add_argument('--neg', help='whether to perform opposite hypothesis. Default False', action='store_true')
+    id_matrix.add_argument('--both', help='whether to perform both positive and negative hypothesis. Default False', action='store_true')
     id_matrix.add_argument('--catnames',help='assign column names to categorical variable',nargs='+',type=str)
     id_matrix.add_argument('--contnames',help='assign column names to continuous variables',nargs='+',type=str)
     id_matrix.add_argument('--id_prefix',help='assign prefix to the IDs in the ID file',type=str)
@@ -319,6 +320,7 @@ class Generateids:
                                    categorical_Names:List[str]=None,
                                    continuous_Names:List[str]=None,
                                    negative:bool=False,
+                                   both:bool=False,
                                    id_prefix:str=None,
                                    id_suffix:str=None,
                                    sort_id:bool=False,
@@ -380,7 +382,7 @@ class Generateids:
             if '/' in ID_file:
                 prefix='/'.join(ID_file.split('/')[0:-1]) + '/'
             else:
-                prefix=[]
+                prefix=''
             with open(ID_file,'w') as f:
                 for i in ID_list:
                     f.writelines(i)
@@ -419,7 +421,7 @@ class Generateids:
             continuous_pd = pd.DataFrame()
         
         if intercept:
-            design_pd['intercept'] = 1
+            design_pd['intercept'] = [1 for i in range(len(ID_pd))]
         design_pd = pd.concat([design_pd,category_pd,continuous_pd],axis=1)
         independentVariable=['intercept'] + categoricalVariable+continuousVariable if intercept else categoricalVariable + continuousVariable
         independentVariable_names = design_pd.columns.tolist()
@@ -447,6 +449,7 @@ class Generateids:
                             f.writelines(line)
                             f.writelines('\n')
                 else:
+                    print(prefix+hypothesis.replace('.','_')+'_design.txt')
                     print(temp_design_pd.head(2))
                         
                 contrast_matrix_temp = [0 for i in range(len(temp_design_pd.columns))]
@@ -459,6 +462,10 @@ class Generateids:
                 try:
                     if negative: # test opposite hypothesis
                         contrast_matrix_temp[contrast_id[0]] = -1
+                    elif both:
+                        contrast_matrix_temp[contrast_id[0]] = -1
+                        contrast_matrix_temp2 = [i for i in contrast_matrix_temp]
+                        contrast_matrix_temp2[contrast_id[0]] = 1
                     else:
                         contrast_matrix_temp[contrast_id[0]] = 1
                 except IndexError:
@@ -473,9 +480,14 @@ class Generateids:
                             f.writelines('\n')
                         f.writelines(' '.join([str(i) for i in contrast_matrix_temp]))
                         f.writelines('\n')
+                        if both:
+                            f.writelines(' '.join([str(i) for i in contrast_matrix_temp2]))
+                            f.writelines('\n')
                 else:
                     print(hypothesis.replace('.','_'))
                     print(contrast_matrix_temp)
+                    if both:
+                        print(contrast_matrix_temp2)
 
 if __name__ == '__main__':
     args = main()
@@ -526,6 +538,7 @@ if __name__ == '__main__':
                                                continuous_Names=args.contnames,
                                                test=args.test,
                                                negative=args.neg,
+                                               both=args.both,
                                                id_prefix=args.id_prefix,
                                                id_suffix=args.id_suffix,
                                                sort_id=args.sort_id,

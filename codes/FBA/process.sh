@@ -14,14 +14,18 @@ csf_response=dHCP_atlas_v2.1_rf_csf.dhsfa015 # this response function is generat
 #subjects_list=subjects_list.txt
 #subjects_list=subject_lists_term_preterm.txt
 #subjects_list=subject_lists/available_dwi_tbss.txt
-subjects_list=subject_lists/available_dwi_with_all_ASD_PRS_after_ancestry_outliers.txt
+#subjects_list=subject_lists/available_dwi_with_all_ASD_PRS_after_ancestry_outliers_with_PRScs.txt
+#subjects_list=subject_lists/available_dwi_with_all_ASD_PRS_imputed_after_ancestry_outliers_with_PRScs.txt
+subjects_list=subject_lists/available_dwi_with_all_ASD_PRS_Spark_after_ancestry_outliers_with_PRScs.txt
 #subjects_list=available_subjects_PRSPCA_test.txt
 #subjects_list=available_subjects_PRSrisk.txt
 #subjects_list=available_subjects_PRSPt001.txt
-#subjects_list=available_subjects_APOE.txt
+#subjects_list=subject_lists/available_subjects_APOE_after_outliers.txt
+#subjects_list=subject_lists/available_dwi_with_pathwayPRS_after_outlier.txt
 #subjects_list=available_subjects_ZNF804A.txt
 #output_folder=output_PRSrisk/
 #output_folder=output
+#output_folder=output_APOE
 output_folder=output_ASD
 #individual_fods_output=individual_fods # this file is on dhcp-reconstruction/Hai/output
 individual_fods_output=output
@@ -160,7 +164,8 @@ plic_L=plic_L
 plic_L_R=plic_L_R
 cst_L=cst_L
 cst_R=cst_R
-tract_to_examine=( $cst_L )
+cst_L_R=cst_L_R
+tract_to_examine=( $cst_L $cst_R $cst_L_R )
 fba_measures_to_examine=( fd fdc log_fc )
 
 
@@ -226,3 +231,5 @@ cd $src
 #. $scripts/tract_volume.sh
 cd $src
 #. $scripts/perform_jacobians_analysis.sh
+cd $src
+#. $scripts/calculate_average_fixel_val.sh

@@ -26,7 +26,7 @@ run 'transforming wm parcellation to subject space' \
 run 'transforming wm parcellation in subject space to 40 weeks commont emplate' \
     mrtransform IN:$check_here$subject_wm_parc -warp IN:$src/$warps/$ID/$id_ses"_"$warps_in_40wk OUT:$check_here$subject_wm_parc_in_40wks -interp nearest
 
-to_measure=( log_jacob )
+to_measure=( fd )
 for measure in ${to_measure[@]} ; do
     mean_output_file=$src/$output_folder/$aba/mean_${measure}.txt 
     if [ -f $mean_output_file ]; then
@@ -36,18 +36,18 @@ for measure in ${to_measure[@]} ; do
     fi
     mean_value=()
     if [ $measure == "fd" ];then
-        file_to_check=wm_norm_fod.mif
-	mrconvert $file_to_check -coord 3 0 -axes 0,1,2 tmp-$file_to_check
+        file_to_check=${check_here}wm_norm_fod.mif
+	mrconvert $file_to_check -coord 3 0 -axes 0,1,2 tmp-${file_to_check#$check_here}
 	for tract in {94..147}; do
-	    mean_value+=$(mrcalc $check_heresubject_wm_parc $tract -eq - | mrstats tmp-$file_to_check -mask - -output mean)
+	    mean_value+=$(mrcalc $check_here${subject_wm_parc} $tract -eq - | mrstats tmp-${file_to_check#$check_here} -mask - -output mean)
 	done
 	echo $id_ses ${mean_value[@]} >> $mean_output_file
-	rm tmp-$file_to_check
+	rm tmp-${file_to_check#$check_here}
     elif [ $measure == "md" ] || [ $measure == "fa" ] || [ $measure == "ad" ]; then
 	if [ $measure == "ad" ]; then measure=L1;fi
 	file_to_check=$src/$output_folder/$tbss/$ID/dti_${measure^^}.nii.gz
 	for tract in {94..147}; do
-	    mean_value+=$(mrcalc $check_heresubject_wm_parc $tract -eq - | mrstats $file_to_check -mask - -output mean)
+	    mean_value+=$(mrcalc ${check_here}${subject_wm_parc} $tract -eq - | mrstats $file_to_check -mask - -output mean)
 	done
 	echo $id_ses ${mean_value[@]} >> $mean_output_file
     elif [ $measure == "log_jacob" ]; then

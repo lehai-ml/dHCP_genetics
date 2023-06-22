@@ -80,23 +80,36 @@ run 'transforming wm parcellation to average space' \
 #    -out OUT:$plic_L/$plic_L.tck \
 #    -seed_unidirectional
 
-run 'Generating corticospinal tract L' \
-    generate_wm_tract IN:$src/$wm_tracts CST_L \
-    -tckdo tckgen \
-    -exclude IN:$interhemispheric_exclude \
-    -ROI IN:$src/$output_folder/$output_5TT/$wm_parcellation_warped_wm_fod \
-    -fod IN:$src/$output_folder/$warped_wm_fod_average \
-    -act IN:$src/$output_folder/$output_5TT/$image_5TT \
-    -mask IN:$src/$output_folder/$warped_mask_average \
-    -seed_image IN:$src/$output_folder/$output_5TT/scr_L_mask.mif \
-    -select 0 \
-    -seeds 100000 \
-    -angle 20 \
-    -cutoff 0.2 \
-    -maxlength 50 \
-    -out OUT:$plic_L/$cst_L.tck \
-    -seed_unidirectional
-
+#run 'Generating corticospinal tract L' \
+#    generate_wm_tract IN:$src/$wm_tracts CST_L \
+#    -tckdo tckgen \
+#    -exclude IN:$interhemispheric_exclude \
+#    -ROI IN:$src/$output_folder/$output_5TT/$regrid_KANA_in_template \
+#    -fod IN:$src/$output_folder/$warped_wm_fod_average \
+#    -act IN:$src/$output_folder/$output_5TT/$image_5TT \
+#    -mask IN:$src/$output_folder/$warped_mask_average \
+#    -select 0 \
+#    -seeds 10000000 \
+#    -angle 20 \
+#    -cutoff 0.2 \
+#    -out OUT:$cst_L/$cst_L.tck \
+#    -seed_unidirectional
+#
+#run 'Generating corticospinal tract R' \
+#    generate_wm_tract IN:$src/$wm_tracts CST_R \
+#    -tckdo tckgen \
+#    -exclude IN:$interhemispheric_exclude \
+#    -ROI IN:$src/$output_folder/$output_5TT/$regrid_KANA_in_template \
+#    -fod IN:$src/$output_folder/$warped_wm_fod_average \
+#    -act IN:$src/$output_folder/$output_5TT/$image_5TT \
+#    -mask IN:$src/$output_folder/$warped_mask_average \
+#    -select 0 \
+#    -seeds 10000000 \
+#    -angle 20 \
+#    -cutoff 0.2 \
+#    -out OUT:$cst_R/$cst_R.tck \
+#    -seed_unidirectional
+#
 
 
 #run 'Generating CC' \
@@ -129,7 +142,7 @@ run 'Generating corticospinal tract L' \
 #
 
  
-#for tract in ${tract_to_examine[@]};do
-#update_folder_if_needed run "'generating fixel-fixel connectivity'" \
-#  fixelconnectivity IN:$src/$output_folder/$fixel_mask IN:$tract/$tract.tck OUT:$src/$output_folder/$output_tractography/$fba_output/${tract}_${ffixel_matrix}
-#done
+for tract in ${tract_to_examine[@]};do
+update_folder_if_needed run "'generating fixel-fixel connectivity'" \
+  fixelconnectivity IN:$src/$output_folder/$fixel_mask IN:$tract/$tract.tck OUT:$src/$output_folder/$output_tractography/$fba_output/${tract}_${ffixel_matrix}
+done

@@ -153,16 +153,46 @@ run 'getting contrast and design matrices' \
   --file IN:$src/$subjects_list --sep , \
   --categorical 1 \
   --catnames sex \
-  --continuous 2 3 5 6 7 8 \
-  --contnames GA PMA ASD_PRS_Pt_001 AncPC1 AncPC2 AncPC3 \
-  --contrast ASD_PRS_Pt_001 \
   --no-standardize \
-  --no-intercept \
+  --continuous 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 \
+  --contnames GA PMA TBV ASD_PRS_Pt_1em08 ASD_PRS_Pt_1em06 ASD_PRS_Pt_1em5 ASD_PRS_Pt_00001 ASD_PRS_Pt_0001 ASD_PRS_Pt_001 ASD_PRS_Pt_005 ASD_PRS_Pt_01 ASD_PRS_Pt_05 ASD_PRS_Pt_all ASD_PRS_PC1 AncPC1 AncPC2 AncPC3 \
+  --contrast ASD_PRS_Pt_1em08 ASD_PRS_Pt_1em06 ASD_PRS_Pt_1em5 ASD_PRS_Pt_00001 ASD_PRS_Pt_0001 ASD_PRS_Pt_001 ASD_PRS_Pt_005 ASD_PRS_Pt_01 ASD_PRS_Pt_05 ASD_PRS_Pt_all ASD_PRS_PC1 \
   --sort_id \
+  --no-intercept \
   --generate_vest \
   --out_ID OUT:$stats_folder/$id_file \
-  --out_design OUT:$stats_folder/$design_matrix \
-  --out_contrast OUT:$stats_folder/$contrast_matrix
 
-randomise -i all_FA -o ASD_PRS_Pt_001 -d designmatrix.txt -t contrast_matrix -m mean_FA_skeleton_mask -n 1000 --T2 -D
+#  
+#run 'getting contrast and design matrices' \
+#  python $src/generate_ID_list.py matrix \
+#  --file IN:$src/$subjects_list --sep , \
+#  --categorical 1 \
+#  --catnames sex \
+#  --continuous 2 3 5 6 7 8 \
+#  --contnames GA PMA ASD_PRS_Pt_001 AncPC1 AncPC2 AncPC3 \
+#  --contrast ASD_PRS_Pt_001 \
+#  --no-standardize \
+#  --no-intercept \
+#  --sort_id \
+#  --generate_vest \
+#  --out_ID OUT:$stats_folder/$id_file \
+#  --out_design OUT:$stats_folder/$design_matrix \
+#  --out_contrast OUT:$stats_folder/$contrast_matrix
+#
+
+cd $stats_folder
+
+threshold=( ASD_PRS_Pt_1em08 ASD_PRS_Pt_1em06 ASD_PRS_Pt_1em5 ASD_PRS_Pt_00001 ASD_PRS_Pt_0001 ASD_PRS_Pt_001 ASD_PRS_Pt_005 ASD_PRS_Pt_01 ASD_PRS_Pt_05 ASD_PRS_Pt_all ASD_PRS_PC1 )
+threshold=( ASD_PRS_Pt_001 )
+for pt in ${threshold[@]}; do
+    echo "###########################"
+    echo "doing ${pt}"
+    echo "###########################"
+    if [ ! -d "$pt" ]; then
+	mkdir -p $pt
+	randomise -i all_FA -o $pt -d $pt"_"design.txt -t $pt"_"contrast.txt -m mean_FA_skeleton_mask -n 1000 --T2 -D
+    fi
+done
+
+#randomise -i all_FA -o ASD_PRS_Pt_001 -d designmatrix.txt -t contrast_matrix -m mean_FA_skeleton_mask -n 1000 --T2 -D
 
