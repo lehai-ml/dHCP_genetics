@@ -43,6 +43,7 @@ codes/FBA/wm_test.sh
 codes/FBA/output 
 codes/FBA/output_PRSrisk 
 codes/FBA/output_term_preterm
+codes/FBA/output_APOE
 
 codes/FBA/individual_fods
 codes/gene_set/PRSice/genetic_dataset
