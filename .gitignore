@@ -32,3 +32,4 @@ codes/gene_set
 notebook_results
 codes/FBA
 codes/DrawEMVol
+*.json
