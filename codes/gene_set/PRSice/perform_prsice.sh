@@ -1,68 +1,79 @@
 #!/bin/bash
 
-src=$(pwd)
-genetic_data=genetic_dataset
-PRSice_script=PRSice.R
-PRSice_bin=PRSice_linux
 
-output_folder=output
+while getopts "hb:l:t:v:o:" arg; do
+    case $arg in
+	b) base_file=${OPTARG};;
+	l) ld_file=${OPTARG};;
+	t) target_file=${OPTARG};;
+	v) valid_snp_file=${OPTARG};;
+	o) output_folder=${OPTARG};;
+	h) 
+	    echo "-h: help menu"
+	    echo "-b: path to summary statistics base file"
+	    echo "-l: path to ld b-file"
+	    echo "-t: path to target b-file"
+	    echo "-v: path to valid extract SNP file, this is outputed by PRSice after the first run"
+	    echo "-o: path to output file name root"
+	    exit 0;;
+	?)  exit 1;;
+    esac
+done
 
-base_file=$src/$genetic_data/base_files/asd/preprocessed_iPSYCH-PGC_ASD_Nov2017.gz
-#base_file=$src/$genetic_data/base_files/scz/PGC3_SCZ_short.filtered_and_noambiguous_alt2.gz
-target_files=$src/$genetic_data/target_files/euro_batch2_genotyped #set of files containing .bed .bim .fam
-gene_build=$src/$genetic_data/$gene_build
-#Ensemblegtf=Homo_sapiens.GRCh37.87.gtf
-#msigdb=$src/$genetic_data/pathway_database/MSigDB/jansen_gene_set_symbol.gmt
-ld_files=$src/$genetic_data/ld_files/PRSICE_check_file #set of files containing .bed .bim.fam
-#pheno_cov_files=$src/$genetic_data/pheno_cov_files/asd
-#phenotype=phenotype_EUR.txt
-#covariate=covariate_EUR.txt
-lower=1e-8
-upper=1
-number=1000
-PRS_threshold=$(python generate_thresholds_intervals.py \
-	--lower $lower --upper $upper --log --number $number --precision 1)
-#Rscript ./$PRSice_script\
-#	--prsice ./$PRSice_bin \
-#	--dir . \
-#	--a1 A1\
-#	--a2 A2\
-#	--bar-levels 1e-8,1e-6,1e-5,0.0001,0.001,0.01,0.05,0.1,0.5,1\
-#	--fastscore \
-##	--all-score \
-#	--base $base_file\
-#	--base-info INFO:0.9\
-#	--binary-target F\
-#	--bp BP\
-#	--chr CHR\
-#	--snp SNP\
-#	--stat OR\
-##	--cov $pheno_cov_files/$covariate\
-##	--pheno $pheno_cov_files/$phenotype\
-##	--gtf $gene_build/$Ensemblegtf\
-#	--ld $ld_files\
-##	--msigdb $msigdb\
+[[ -z "${base_file}" ]] && echo "ERROR: -b base file is missing" && exit 1
+[[ -z  "${target_file}" ]] && echo "ERROR: -t target file is missing" && exit 1
+[[ -z "${ld_file}" ]] && echo "ERROR: -l path to ld file is missing" &&  exit 1
+[[ -z  "${output_folder}" ]] && echo "ERROR: -o path to and output filename root is missing" && exit 1
 
-#PRS_threshold=$(cat asd_all_thresholds.txt)
+dir=~/Desktop/dHCP_genetics/codes/gene_set/PRSice # directory that holds the PRSice script and executable
+PRSice_script=PRSice.R #path to the PRSice R script
+PRSice_bin=PRSice_linux # path to the PRSice executable
+#lower=1e-8
+#upper=1
+#number=100
+#PRS_threshold=$(python generate_thresholds_intervals.py \
+#	--lower $lower --upper $upper --log --number $number --precision 1)
+#
+#change the bar-levels to adjust. if you want an interview you can 
+#uncomment the PRS_threshold=$(python...) and define the interval 
 
-Rscript ./$PRSice_script\
-	--prsice ./$PRSice_bin \
-	--dir . \
+if [[ -z "${valid_snp_file}" ]]; then
+Rscript $dir/$PRSice_script\
+	--prsice $dir/$PRSice_bin \
+	--dir $dir \
 	--a1 A1\
 	--a2 A2\
-	--bar-levels $PRS_threshold\
+	--bar-levels 1e-8,1e-6,1e-5,0.0001,0.001,0.01,0.05,0.1,0.5,1\
 	--fastscore \
 	--base $base_file\
-	--base-info INFO:0.9\
-	--binary-target F\
+	--binary-target T\
 	--bp BP\
 	--chr CHR\
 	--snp SNP\
 	--stat OR\
-	--ld $ld_files\
-	--target $target_files \
-	--out $src/$output_folder/asd/ASD_1000p \
+	--target $target_file \
+	--out $output_folder \
 	--no-regress \
 	--print-snp \
-	--extract $src/$output_folder/asd/ASD_1000p.valid
-
+	--ld $ld_file
+else
+Rscript $dir/$PRSice_script\
+	--prsice $dir/$PRSice_bin \
+	--dir $dir \
+	--a1 A1\
+	--a2 A2\
+	--bar-levels 1e-8,1e-6,1e-5,0.0001,0.001,0.01,0.05,0.1,0.5,1\
+	--fastscore \
+	--base $base_file\
+	--binary-target T\
+	--bp BP\
+	--chr CHR\
+	--snp SNP\
+	--stat OR\
+	--target $target_file \
+	--out $output_folder \
+	--no-regress \
+	--print-snp \
+	--ld $ld_file \
+	--extract $valid_snp_file
+fi
