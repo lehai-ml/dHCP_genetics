@@ -29,7 +29,7 @@ dataset
 *.gmt
 
 codes/gene_set
-notebook_results
 codes/FBA
 codes/DrawEMVol
+notebook_results/cst/
 *.json
