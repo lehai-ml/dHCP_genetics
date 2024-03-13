@@ -50,7 +50,7 @@ Rscript $dir/$PRSice_script\
 	--bp BP\
 	--chr CHR\
 	--snp SNP\
-	--stat OR\
+	--stat BETA\
 	--target $target_file \
 	--out $output_folder \
 	--no-regress \
@@ -69,7 +69,7 @@ Rscript $dir/$PRSice_script\
 	--bp BP\
 	--chr CHR\
 	--snp SNP\
-	--stat OR\
+	--stat BETA\
 	--target $target_file \
 	--out $output_folder \
 	--no-regress \

@@ -96,7 +96,10 @@ class Cohort:
             table['IID']=[ID_prefix+str(i) for i in table['IID']]
         if ID_suffix is not None:
             table['IID']=[str(i)+ID_suffix for i in table['IID']]
-        table=table.drop('FID',axis=1)
+        try:
+            table=table.drop('FID',axis=1)
+        except KeyError:
+            table=table.drop('#FID',axis=1)
         table=table.rename({'IID':'ID'},axis=1)
         table=table.sort_values('ID').reset_index(drop=True)
         table['ID'] = [i.split('-')[0] for i in table['ID']] # cases where the ID contains -1

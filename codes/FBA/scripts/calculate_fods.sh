@@ -1,5 +1,4 @@
 #!/bin/bash
-
 for ID in ${ID_list[@]}; do 
 (
 
@@ -33,4 +32,20 @@ run 'warping normalised FODs to joint atlas space' \
 
 ) || continue
 done
+
+cd $src
+missing_files=($(diff -d $individual_fods_output $output_folder | grep "Only in ${output_folder}" | awk '{print $4}'))
+
+if [ ${#missing_files[@]} -gt 0 ]; then
+
+    echo -e "${RED}${#missing_files[@]} of the outputs in: "${output_folder}" are newly generated and are not found in the original output folder: "${individual_fods_output}"${NC}"
+    echo -e "${RED}I will copy those files into the original output folder. So next time if you change the ID list, it won't rerun the same commands.${NC}"
+    for folder in ${missing_files[@]}; do
+        echo -e "copying ${RED}$output_folder/$folder to $individual_fods_output/ ${NC}"
+	cp -r -u $output_folder/$folder $individual_fods_output/    
+    done
+    echo -e "${GREEN}Done.${NC}"
+
+fi
+
 

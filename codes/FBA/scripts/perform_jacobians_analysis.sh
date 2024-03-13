@@ -50,6 +50,7 @@ run 'getting contrast and design matrices' \
   --out_ID OUT:$id_file
 
 
+pt=( ASD_imputed_Pt_001 ASD_imputed_Pt_005 ASD_imputed_01 ASD_imputed_Pt_05 ASD_imputed_Pt_all ASD_imputed_PC1 ASD_imputed_CS )
 #pt=( ASD_PRS_Pt_001 )
 for pt in ${pt[@]}; do
     echo "###########################"
