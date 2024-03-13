@@ -31,5 +31,8 @@ dataset
 codes/gene_set
 codes/FBA
 codes/DrawEMVol
+codes/executable_scripts/
+codes/docs/analysis/old/
+codes/Rscripts/
 notebook_results/cst/
 *.json
