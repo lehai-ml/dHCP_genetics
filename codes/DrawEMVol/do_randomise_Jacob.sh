@@ -1,51 +1,83 @@
 #!/bin/bash
 
 src=$(pwd)
-output=output
-subject_list=$src/available_subjects_ASDPRSPCA.csv
-Jacobians=Jacobians
+output=output_Jacobians
+jacobians_clusterstat=jacobians_clusterstat
+subjects_list=$src/Jacobians_volume_ASDPCA_after_ancestry_outliers.txt
 template=$src/week40_T2w.nii.gz
-all_Jacobians=all_Jacobians.nii.gz
-mask=$src/mask.nii.gz
-regrid_mask=regrid_mask.nii.gz
+mask=mask_gm_wm_only.mif
 ID=()
-
-. ../FBA/support_functions.sh
+output_folder=cortical_only_4sigma_no_TBV
+. ../FBA/scripts/support_functions.sh
 
 mkdir -p $src/$output
 
-cd $src/$output
-
-while read p; do
-	sub_ses=$(echo $p | awk -F, '{print $1}' | awk -F'/' '{print $1"_"$2}')
-	ID+=$(echo "$src/$Jacobians/${sub_ses}_logjacs_in_extdhcp40wks_smooth3sigmavox.nii.gz ")
-done < $subject_list
-
-#creating 40 weeks mask
-#bet $template $mask -o -m -R -f 0.1
-run 'Merge them together' \
-	mrcat $(IN $ID) OUT:$all_Jacobians
-
-run 'regrid mask' \
-	mrgrid IN:$mask regrid -template IN:$all_Jacobians OUT:$regrid_mask
-
-#generate design and contrast matrix using Glm GUI
-run 'generate contrast design matrix' \
-	python $script/generate_ID_list.py matrix \
-	--file IN:$src/$subject_list --sep , \
-	--continuous 2 3 5 6 7 8\
-	--contnames GA PMA ASDPRS AncP1 AncP2 AncP3 \
-	--categorical 1 \
-	--catnames sex \
-	--contrast ASDPRS \
-	--out_ID OUT:id_files.txt \
-	--out_design OUT:design_matrix.txt \
-	--out_contrast OUT:contrast_matrix.txt
-
+cd $output
 #
 #run 'Perform randomise' \
 #	randomise -i IN:test_mergeJacobians.nii.gz -o OUT-name:test_stats -m $regrid_mask -
 #
 #run 'Merge the Jacobians together' \
 #	mrcat $(IN $ID) OUT:mergedJacobians.nii.gz
-#
+
+##!/bin/bash
+#doing mrclusterstats
+
+ID_list=()
+while read subj; do
+if [ "x$subj" == "x" ]; then continue; fi
+if [[ "$subj" =~ ^[[:space:]]*# ]]; then continue; fi
+IFS=',' read -ra subj <<< $subj
+ID_list+=(${subj[0]})
+done < $subjects_list
+
+run 'regrid mask'  \
+	mrgrid IN:$src/$mask regrid -voxel 1 OUT:regrided_mask.mif
+
+for ID in "${ID_list[@]}"; do
+(
+
+echo '###################################'
+echo '    '$ID
+echo '###################################'
+
+id_ses=$(echo $ID | sed 's/\//_/')
+file_to_check=$src/dafnis/Jacobians_in_extdhcp40wks/${id_ses}_logjacs_in_extdhcp40wks_smooth3sigmavox.nii.gz
+run 'regrid log jacobians to parcellation atlas' \
+	mrgrid $file_to_check regrid -template IN:regrided_mask.mif OUT:${id_ses}_regrided_log_jacobians.mif
+
+run 're smooth jacobians' \
+	mrfilter IN:${id_ses}_regrided_log_jacobians.mif smooth -stdev 4 OUT:${id_ses}_regrided_log_jacobians_smoothed.mif
+) || continue
+done
+
+pt=( ASD_PC1 )
+id_file=id_files_smoothed.txt
+
+run 'getting contrast and design matrices' \
+  python ../../FBA/generate_ID_list.py matrix \
+  --file IN:$subjects_list --sep , \
+  --categorical 1 \
+  --catnames sex \
+  --intercept \
+  --standardize \
+  --continuous 2 3 5 6 7 8 \
+  --contnames GA PMA ${pt[@]} AncPC1 AncPC2 AncPC3 \
+  --contrast ${pt[@]} \
+  --id_suffix _regrided_log_jacobians_smoothed \
+  --out_ID OUT:$id_file
+#you can change if you want to work with jacobians or smoothed jacobians.
+pt=( ASD_PC1 )
+for pt in ${pt[@]}; do
+    echo "###########################"
+    echo "doing ${pt}"
+    echo "###########################"
+    if [ ! -d "$output_folder/$pt" ]; then
+	mkdir -p $output_folder/$pt
+        mrclusterstats $id_file $pt"_design.txt" $pt"_contrast.txt" regrided_mask.mif $output_folder/$pt/stat
+    fi
+done
+cp $id_file $output_folder/$pt/stat
+cp $pt"_design.txt" $output_folder/$pt/stat
+cp $pt"_contrast.txt" $output_folder/$pt/stat
+

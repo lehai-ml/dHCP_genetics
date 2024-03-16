@@ -12,7 +12,7 @@ volume_output=volumetric_DrawEM.txt
 tissue_seg_output=9TT.txt
 
 set -e
-. ../FBA/support_functions.sh
+. ../FBA/scripts/support_functions.sh
 
 if [ ! -d $volume_data ]; then
 	echo "neonatal release not yet here"
