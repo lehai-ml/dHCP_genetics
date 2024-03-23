@@ -36,3 +36,4 @@ codes/docs/analysis/old/
 codes/Rscripts/
 notebook_results/cst/
 *.json
+.virtual_documents/
