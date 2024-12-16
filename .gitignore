@@ -34,6 +34,7 @@ codes/DrawEMVol
 codes/executable_scripts/
 codes/docs/analysis/old/
 codes/Rscripts/
+codes/docs/
 notebook_results/cst/
 *.json
 .virtual_documents/
